@@ -4,6 +4,7 @@
 //In development, should work on both windows and linux
 //Feel free to compile and playtest!
 
+
 /* Gameplay:
 
 Explore an (almost) endless mass of blocks and dig your way around!
@@ -26,7 +27,7 @@ Implemented features:
     Extra sight
   End Score System
 
-Agenda:
+Agenda, in particular order:
   Encrypted Save System
   Upgrades (3/5)
     mining width
@@ -35,6 +36,7 @@ Agenda:
   Rogue Enemy Miners to fight
   Minibosses to fight
   Boss to fight
+  Main Menu
 */
 
 #include <vector>
@@ -77,19 +79,19 @@ static const int MAP_UPPER = 2000; //2000x2000 grid, 4 million blocks
 #define ORE      5
 
 //global vars
-static bool game;
-static int upgrades[10];
-static map<string, int> player;
-static vector<vector<int>> grid(MAP_UPPER, vector<int> (MAP_UPPER));
+static bool game; //game on/off
+static int upgrades[10]; //support for 10 upgrades, only 5 planned
+static map<string, int> player; //dictionary of player items, defined in Init()
+static vector<vector<int>> grid(MAP_UPPER, vector<int> (MAP_UPPER)); //map grid
 
 int main() {
   Init(); //creates map and prints
-  Intro();
+  Intro(); //prints opening statement
 
   int action;
   while(game) {
     #ifdef _WIN32
-    Sleep(200);
+    Sleep(200); //only windows can wait between 0 and 1 seconds
     #endif
 
     action = GameLoop();
@@ -119,12 +121,12 @@ int main() {
 static void GenerateMap() {
   int y, x;
   int random;
-  srand((unsigned int)time(NULL));
+  srand((unsigned int)time(NULL)); //seeds random
 
   for (y = 0; y < MAP_UPPER; y++) {
     for (x = 0; x < MAP_UPPER; x++) {
-      random = rand() % 100; //vals 0-99
-      switch(random) { //1% chance each num
+      random = rand() % 100;
+      switch(random) { //1% chance each case
         case 0:
           random = rand() % 3; //33% ore 67% artifact
           if (random == 0)
@@ -211,14 +213,14 @@ static int GameLoop() {
       return 4;
     default:
       return -1;
-  }
+  } //end switch
 }
 ///////////////////////////////////////////////////////////////////////////////
 
 //adjusts players position on map based on keypress
 static void Move(int x) {
   switch (x) {
-    case 1: //w
+    case 1: //w, up
       if (player["Y"] > player["sight"]) {
         CollectItem(player["Y"]-1,player["X"]);
         grid[player["Y"]-1][player["X"]] = 0;
@@ -226,7 +228,7 @@ static void Move(int x) {
         player["Y"]--;
       }
       break;
-    case 2: //a
+    case 2: //a, left
       if (player["X"] > player["sight"]) {
         CollectItem(player["Y"],player["X"]-1);
         grid[player["Y"]][player["X"]-1] = 0;
@@ -234,7 +236,7 @@ static void Move(int x) {
         player["X"]--;
       }
       break;
-    case 3: //s
+    case 3: //s, down
       if (player["Y"] < MAP_UPPER-player["sight"]) {
         CollectItem(player["Y"]+1,player["X"]);
         grid[player["Y"]+1][player["X"]] = 0;
@@ -242,7 +244,7 @@ static void Move(int x) {
         player["Y"]++;
       }
       break;
-    case 4: //d
+    case 4: //d, right
       if (player["X"] < MAP_UPPER-player["sight"]) {
         CollectItem(player["Y"],player["X"]+1);
         grid[player["Y"]][player["X"]+1] = 0;
@@ -256,30 +258,29 @@ static void Move(int x) {
 
 //processes block player stepped on
 static void CollectItem(int y, int x) {
-  if (grid[y][x] == 1) { //dirt
+  if (grid[y][x] == DIRT) {
+
     int z = rand() % 100;
-    if (z == 0) {
-      cout << "\nWhile digging, you found an ancient artifact!" << '\n';
+    if (z == 0 || z == 1) { //1% chance artifact, 1% chance ore
+      if (z == 0) {
+        cout << "\nWhile digging, you found an ancient artifact!" << '\n';
+        player["artifacts"]++;
+      } else {
+        cout << "\nWhile digging, you found a rare ore!" << '\n';
+        player["ore"]++;
+      }
       #ifdef _WIN32
       Sleep(1300);
       #else
       sleep(1);
       #endif
-      player["artifacts"]++;
-    }
-    else if (z == 1) {
-      cout << "\nWhile digging, you found a rare ore!" << '\n';
-      #ifdef _WIN32
-      Sleep(1300);
-      #else
-      sleep(1);
-      #endif
-      player["ore"]++;
-    } else {
+    } else { //98% chance dirt
       player["dirt"]++;
     }
+
   } else if (grid[y][x] == SHOP) {
     CallShop();
+
   } else if (grid[y][x] == ARTIFACT) {
     cout << "\nWhile digging, you found an ancient artifact!" << '\n';
     #ifdef _WIN32
@@ -288,6 +289,7 @@ static void CollectItem(int y, int x) {
     sleep(1);
     #endif
     player["artifacts"]++;
+
   } else if (grid[y][x] == ORE) {
     cout << "\nWhile digging, you found a rare ore!" << '\n';
     #ifdef _WIN32
@@ -306,7 +308,7 @@ void CallShop() {
   bool asked = false;
   char x;
 
-  cin.clear();
+  cin.clear(); //ensures player actually gets asked the questions
   cout << "You come across a small opening and see that there's a store inside.\n";
   cout << "Would you like to shop? I buy Ore! Enter Y if yes!\n";
   cin >> x;
@@ -330,14 +332,13 @@ void CallShop() {
         else if (x == '2')
           BuyArtifacts();
         else if (x == '3') {
-          if (!asked) {
+          if (!asked) { //can only see upgrade offer once
             Trade();
             asked = true;
           }
           else
             cout << "We've already discussed that.\n\n";
-        }
-        else
+        } else
           finish = true;
       } else {
         if (x == 'q')
@@ -345,8 +346,8 @@ void CallShop() {
         else
           cout << "Sorry, I didn't get that. Which number did you want?\n\n";
       }
-    }
-  }
+    } //end while
+  } //end if x == y
 
   cout << "Alright, see you later.\n";
   return;
@@ -375,9 +376,9 @@ static void SellOre() {
   bool finish = false;
   char x;
 
-  if (player["ore"] == 0) {
+  if (player["ore"] == 0)
     cout << "Oh... it doesn't look like you're carrying any ore to sell.\n";
-  } else {
+  else {
     while (!finish && player["ore"] > 0) {
       cout << "Would you like to sell any ore? 5 coins per piece! Enter Y if yes.\n";
       cin >> x;
@@ -396,8 +397,8 @@ static void SellOre() {
         cout << "Alright, no ore.\n\n";
         finish = true;
       }
-    }
-  }
+    } //end while
+  } //end else
 }
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -425,9 +426,8 @@ static void BuyArtifacts() {
     } else {
       cout << "Okay.\n\n";
       finish = true;
-    }
-  }
-
+    } //end else
+  } //end while
 }
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -460,7 +460,7 @@ static void Trade() {
       case 3:
         cout << "This enhancement will allow you to dig deeper.\n";
         break;
-    }
+    } //end switch
 
     cout << "Do you want to buy it for " << cost << " artifacts? Enter Y if yes.\n";
     cin >> x;
@@ -472,9 +472,8 @@ static void Trade() {
       } else {
         cout << "Looks like you don't have enough artifacts for me. Figures...\n\n";
       }
-    } else {
+    } else
       cout << "Right... You're missing out buddy.\n\n";
-    }
   }
 }
 ///////////////////////////////////////////////////////////////////////////////
@@ -507,21 +506,23 @@ static void Upgrade(int x) {
       cout << ("\nUpgrade not fully implemented.\n");
       // TODO: implement mining depth upgrade
       break;
-  }
+  } //end switch
 }
 ///////////////////////////////////////////////////////////////////////////////
 
 //processes final game statistics
-static void GameReport() { //TODO: test adding sleep between statistic lines?
+static void GameReport() { 
   cout << "\n\nGame Over!\n";
   int upg = 0;
   int score = 0;
+
   for (int i = 0; i < 10; i++) {
     if (upgrades[i] > 0) {
       score += upgrades[i]*50;
       upg += upgrades[i];
     }
   }
+
   score += player["dirt"];
   score += player["ore"]*5;
   score += player["artifacts"]*30;
