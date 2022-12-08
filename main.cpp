@@ -46,12 +46,18 @@ Agenda, in particular order:
 #include <cstdlib>
 #include <map>
 #include <string>
+#include <fstream>
 #ifdef _WIN32
 #include <Windows.h>
 #else
 #include <unistd.h>
 #endif
 using namespace std;
+
+//enemy AI class
+struct Rogue {
+  int damage, coins, ore, artifacts, health, x, y, direction;
+};
 
 //function prototypes
 static void GenerateMap();
@@ -67,6 +73,11 @@ static void Trade();
 static void Upgrade(int x);
 static void GameReport();
 static void Intro();
+static void InitMiner(Rogue &miner, int y, int x);
+static void MoveMiners(vector<Rogue>&);
+static void MoveMiner(Rogue &miner);
+static bool ProcessBlock(Rogue &miner, int y, int x);
+static void SaveGrid();
 
 //Constants
 static const int MAP_UPPER = 2000; //2000x2000 grid, 4 million blocks
@@ -77,6 +88,7 @@ static const int MAP_UPPER = 2000; //2000x2000 grid, 4 million blocks
 #define SHOP     3
 #define ARTIFACT 4
 #define ORE      5
+#define MINER    6
 
 //global vars
 static bool game; //game on/off
@@ -88,7 +100,22 @@ int main() {
   Init(); //creates map and prints
   Intro(); //prints opening statement
 
-  int action;
+  int action, x, y;
+  vector<Rogue> MinerList;
+
+  for (int i = 0; i < 30; i++) {
+    y = rand() % 1500;
+    if (y < 500) 
+      y += 500;
+    x = rand() % 1500;
+    if (x < 500) 
+      x += 500;
+
+    Rogue miner;
+    InitMiner(miner, y, x);
+    MinerList.push_back(miner);
+  }
+
   while(game) {
     #ifdef _WIN32
     Sleep(200); //only windows can wait between 0 and 1 seconds
@@ -106,13 +133,17 @@ int main() {
       case 4:
         Move(action);
         break;
+      case 5:
+        SaveGrid();
+        break;
     } //end switch
-
+    
+    MoveMiners(MinerList);
     PrintMap();
   }// end game while
-
+  
+  SaveGrid();
   GameReport();
-
   return 0;
 }
 ///////////////////////////////////////////////////////////////////////////////
@@ -158,11 +189,21 @@ static void GenerateMap() {
 //prints blocks around the player
 static void PrintMap() {
   cout << "\n\n\n\n\n\n";
-  int y, x, z, a;
+  int y, x, a;
+
   for (y = player["Y"]-player["sight"]; y < player["Y"]+player["sight"]+1; y++) {
+    if (y > MAP_UPPER-1)
+      y = MAP_UPPER-1;
+    else if (y < 0)
+      y = 0;
+
     for (x = player["X"]-player["sight"]; x < player["X"]+player["sight"]+1; x++) {
-      z = grid[y][x];
-      switch(z) {
+      if (x > MAP_UPPER-1)
+        x = MAP_UPPER-1;
+      else if (x < 0)
+        x = 0;
+
+      switch(grid[y][x]) {
         case PLAYER:
           cout << "P ";
           break;
@@ -181,6 +222,7 @@ static void PrintMap() {
             cout << "# ";
           break;
         case SHOP:
+        case MINER:
           cout << "* ";
           break;
       } //end switch
@@ -202,15 +244,23 @@ static int GameLoop() {
   switch (input) {
     case 'q':
     case '0':
+    case 'Q':
       return 0;
     case 'w':
+    case 'W':
       return 1;
     case 'a':
+    case 'A':
       return 2;
     case 's':
+    case 'S':
       return 3;
     case 'd':
+    case 'D':
       return 4;
+    case 'O':
+    case 'o':
+      return 5;
     default:
       return -1;
   } //end switch
@@ -223,32 +273,32 @@ static void Move(int x) {
     case 1: //w, up
       if (player["Y"] > player["sight"]) {
         CollectItem(player["Y"]-1,player["X"]);
-        grid[player["Y"]-1][player["X"]] = 0;
-        grid[player["Y"]][player["X"]] = 2;
+        grid[player["Y"]-1][player["X"]] = PLAYER;
+        grid[player["Y"]][player["X"]] = MINED;
         player["Y"]--;
       }
       break;
     case 2: //a, left
       if (player["X"] > player["sight"]) {
         CollectItem(player["Y"],player["X"]-1);
-        grid[player["Y"]][player["X"]-1] = 0;
-        grid[player["Y"]][player["X"]] = 2;
+        grid[player["Y"]][player["X"]-1] = PLAYER;
+        grid[player["Y"]][player["X"]] = MINED;
         player["X"]--;
       }
       break;
     case 3: //s, down
-      if (player["Y"] < MAP_UPPER-player["sight"]) {
+      if (player["Y"] < MAP_UPPER-player["sight"]-1) {
         CollectItem(player["Y"]+1,player["X"]);
-        grid[player["Y"]+1][player["X"]] = 0;
-        grid[player["Y"]][player["X"]] = 2;
+        grid[player["Y"]+1][player["X"]] = PLAYER;
+        grid[player["Y"]][player["X"]] = MINED;
         player["Y"]++;
       }
       break;
     case 4: //d, right
-      if (player["X"] < MAP_UPPER-player["sight"]) {
+      if (player["X"] < MAP_UPPER-player["sight"]-1) {
         CollectItem(player["Y"],player["X"]+1);
-        grid[player["Y"]][player["X"]+1] = 0;
-        grid[player["Y"]][player["X"]] = 2;
+        grid[player["Y"]][player["X"]+1] = PLAYER;
+        grid[player["Y"]][player["X"]] = MINED;
         player["X"]++;
       }
       break;
@@ -437,7 +487,7 @@ static void Trade() {
 
   int z = 4; //z is finished upgrades. max 10
   int cost = rand() % 50;
-  if (cost < 20) { cost += 20; }
+  if (cost < 20) { cost += 12; }
 
   cout << "\nOkay, I only have one fine deal for you.\n";
   cout << "If you have " << cost << " ancient artifacts then I may consider selling...\n";
@@ -586,3 +636,118 @@ static void Intro() {
   PrintMap();
 }
 ///////////////////////////////////////////////////////////////////////////////
+
+//creates initial values for the enemy miners
+static void InitMiner(Rogue &miner, int y, int x) {
+  miner.artifacts = 0;
+  miner.coins = 25;
+  miner.damage = 10;
+  miner.ore = 0;
+  miner.health = 30;
+  miner.x = x;
+  miner.y = y;
+  miner.direction = rand() % 4;
+  grid[y][x] = MINER;
+}
+///////////////////////////////////////////////////////////////////////////////
+
+//processes miner actions after player action
+static void MoveMiners(vector<Rogue> &MinerList) {
+  int y;
+  for (int x = 0; x < MinerList.size(); x++) {
+    y = rand() % 2;
+    if (y == 0)
+      MoveMiner(MinerList[x]);
+  }
+}
+///////////////////////////////////////////////////////////////////////////////
+
+//moves a miner on the map
+static void MoveMiner(Rogue &miner) {
+  int change = rand() % 10;
+  if (change == 0)
+    miner.direction = rand() % 4;
+  bool temp;
+  switch (miner.direction) {
+    case 0: //w, up
+      if (miner.y > 0) {
+        temp = ProcessBlock(miner, miner.y-1, miner.x);
+        if (temp) {
+          grid[miner.y-1][miner.x] = MINER;
+          grid[miner.y][miner.x] = MINED;
+          miner.y--;
+        }
+      }
+      break;
+    case 1: //a, left
+      if (miner.x > 0) {
+        temp = ProcessBlock(miner, miner.y, miner.x-1);
+        if (temp) {
+          grid[miner.y][miner.x-1] = MINER;
+          grid[miner.y][miner.x] = MINED;
+          miner.x--;
+        }
+      }
+      break;
+    case 2: //s, down
+      if (miner.y < MAP_UPPER-1) {
+        temp = ProcessBlock(miner, miner.y+1, miner.x);
+        if (temp) {
+          grid[miner.y+1][miner.x] = MINER;
+          grid[miner.y][miner.x] = MINED;
+          miner.y++;
+        }
+      }
+      break;
+    case 3: //d, right
+      if (miner.x < MAP_UPPER-1) {
+        temp = ProcessBlock(miner, miner.y, miner.x+1);
+        if (temp) {
+          grid[miner.y][miner.x+1] = MINER;
+          grid[miner.y][miner.x] = MINED;
+          miner.x++;
+        }
+      }
+      break;
+  }
+}
+///////////////////////////////////////////////////////////////////////////////
+
+//returns true if valid move, false if invalid
+static bool ProcessBlock(Rogue &miner, int y, int x) {
+  switch (grid[y][x]) {
+    case ORE:
+      miner.ore++;
+      break;
+    case SHOP:
+      for (int z = 0; z < miner.ore; z++) {
+        miner.ore--;
+        miner.coins += 5;
+      }
+      if (miner.artifacts >= 10) {
+        miner.artifacts -= 10;
+        miner.damage += 5;
+      }
+      return false;
+    case ARTIFACT:
+      miner.artifacts++;
+      break;
+    case PLAYER:
+    case MINER:
+      return false;
+    default:
+      break;
+  }
+  return true;
+}
+
+static void SaveGrid() {
+  static ofstream MyFile("grid.txt");
+  for (int y = 0; y < MAP_UPPER; y++) {
+    for (int x = 0; x < MAP_UPPER; x++) {
+      MyFile << grid[y][x];
+    }
+    MyFile << '\n';
+  }
+  MyFile.close();
+}
