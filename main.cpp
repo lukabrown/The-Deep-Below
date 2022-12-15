@@ -105,7 +105,7 @@ int main() {
   int action, x, y;
 
   //creates vector of all the enemy miners
-  for (int i = 0; i < 500; i++) {
+  for (int i = 0; i < 1000; i++) {
     y = rand() % 2000;
     x = rand() % 2000;
 
@@ -775,10 +775,10 @@ static void InitMiner(Rogue &miner, int y, int x) {
 static void MoveMiners() {
   int x;
   for (long long unsigned int i = 0; i < MinerList.size(); i++) {
-    if (!(MinerList[i].health == 0)) {
+    if (MinerList[i].health != 0) {
       x = rand() % 2;
       if (x == 0)
-        MoveMiner(MinerList[x]);
+        MoveMiner(MinerList[i]);
     }
   }
 }
