@@ -9,11 +9,21 @@
 
 Explore an (almost) endless mass of blocks and dig your way around!
 The game starts with a grid output to a console with 'P' for player in the
-middle. Use WASD to move. Go towards * if you see them. Press q to exit game.
+middle. 
+
+Controls:
+  Use WASD to move.
+  Press q to exit game.
+  Press o to output to grid.txt (prints map, ints based on block types)
+
+Go towards * if you see them, they're rare and sparkly
+$ is a friendly shop!
++ is an enemy miner, beware!
 Have fun!
 
 Implemented features:
   Create and print grid
+  Output grid to file
   Track player items
   Ore/Artifacts found randomly in dirt
   Sometimes hides ore from sight
@@ -52,7 +62,6 @@ Agenda, in particular order:
 #else
 #include <unistd.h>
 #endif
-using namespace std;
 
 //enemy AI class
 struct Rogue {
@@ -60,28 +69,33 @@ struct Rogue {
 };
 
 //function prototypes
-static void GenerateMap();
-static void PrintMap();
+static void Init();
+static void Intro();
+//main game functions
 static int  GameLoop();
 static void Move(int x);
 static void CollectItem(int y, int x);
+static void GameReport();
+static void MySleep(double seconds);
+//map/grid functions
+static void GenerateGrid();
+static void PrintGrid();
+static void SaveGrid();
+//shop functions
 static void CallShop();
-static void Init();
 static void SellOre();
 static void BuyArtifacts();
 static void Trade();
 static void Upgrade(int x);
-static void GameReport();
-static void Intro();
+//enemy miner functions
 static void InitMiner(Rogue &miner, int y, int x);
 static void MoveMiners();
 static void MoveMiner(Rogue &miner);
 static bool ProcessBlock(Rogue &miner, int y, int x);
-static void SaveGrid();
 static void MinerFight(int y, int x);
 
 //Constants
-static const int MAP_UPPER = 2000; //2000x2000 grid, 4 million blocks
+static const int GRID_UPPER = 2000; //2000x2000 grid, 4 million blocks
 //block types
 #define PLAYER   0
 #define DIRT     1
@@ -94,9 +108,9 @@ static const int MAP_UPPER = 2000; //2000x2000 grid, 4 million blocks
 //global vars
 static bool game; //game on/off
 static int upgrades[10]; //support for 10 upgrades, only 5 planned
-static map<string, int> player; //dictionary of player items, defined in Init()
-static vector<vector<int>> grid(MAP_UPPER, vector<int> (MAP_UPPER)); //map grid
-static vector<Rogue> MinerList; //list of all enemy miners
+static std::map<std::string, int> player; //dictionary of player items, defined in Init()
+static std::vector<std::vector<int>> grid(GRID_UPPER, std::vector<int> (GRID_UPPER)); //map
+static std::vector<Rogue> MinerList; //list of all enemy miners
 
 int main() {
   Init(); //creates map and prints
@@ -105,7 +119,7 @@ int main() {
   int action, x, y;
 
   //creates vector of all the enemy miners
-  for (int i = 0; i < 1000; i++) {
+  for (int i = 0; i < 2000; i++) {
     y = rand() % 2000;
     x = rand() % 2000;
 
@@ -115,9 +129,7 @@ int main() {
   }
 
   while(game) {
-    #ifdef _WIN32
-    Sleep(200); //only windows can wait between 0 and 1 seconds
-    #endif
+    MySleep(.2);
 
     action = GameLoop();
 
@@ -137,7 +149,7 @@ int main() {
     } //end switch
     
     MoveMiners();
-    PrintMap();
+    PrintGrid();
   }// end game while
   
   SaveGrid();
@@ -147,13 +159,13 @@ int main() {
 ///////////////////////////////////////////////////////////////////////////////
 
 //creates 2d vector of blocks
-static void GenerateMap() {
+static void GenerateGrid() {
   int y, x;
   int random;
   srand((unsigned int)time(NULL)); //seeds random
 
-  for (y = 0; y < MAP_UPPER; y++) {
-    for (x = 0; x < MAP_UPPER; x++) {
+  for (y = 0; y < GRID_UPPER; y++) {
+    for (x = 0; x < GRID_UPPER; x++) {
       random = rand() % 100;
       switch(random) { //1% chance each case
         case 0:
@@ -185,53 +197,55 @@ static void GenerateMap() {
 ///////////////////////////////////////////////////////////////////////////////
 
 //prints blocks around the player
-static void PrintMap() {
-  cout << "\n\n\n\n\n\n";
+static void PrintGrid() {
+  std::cout << "\n\n\n\n\n\n";
   int y, x, a;
 
+  grid[player["y"]][player["x"]] = PLAYER;
+
   for (y = player["Y"]-player["sight"]; y < player["Y"]+player["sight"]+1; y++) {
-    if (y > MAP_UPPER-1)
-      y = MAP_UPPER-1;
+    if (y > GRID_UPPER-1)
+      y = GRID_UPPER-1;
     else if (y < 0)
       y = 0;
 
     for (x = player["X"]-player["sight"]; x < player["X"]+player["sight"]+1; x++) {
-      if (x > MAP_UPPER-1)
-        x = MAP_UPPER-1;
+      if (x > GRID_UPPER-1)
+        x = GRID_UPPER-1;
       else if (x < 0)
         x = 0;
 
       switch(grid[y][x]) {
         case PLAYER:
-          cout << "P ";
+          std::cout << "P ";
           break;
         case DIRT:
-          cout << "# "; //□_
+          std::cout << "# "; //□_
           break;
         case MINED:
-          cout << "  ";
+          std::cout << "  ";
           break;
         case ARTIFACT: //ore and artifact have chance of not showing up
         case ORE:
           a = rand() % 8;
           if (a == 0) //12.5% chance of showing up in sight
-            cout << "* ";
+            std::cout << "* ";
           else
-            cout << "# ";
+            std::cout << "# ";
           break;
         case SHOP:
-          cout << "$ ";
+          std::cout << "$ ";
           break;
         case MINER:
-          cout << "+ ";
+          std::cout << "+ ";
           break;
       } //end switch
     } //end for x
-    cout << '\n';
+    std::cout << '\n';
   } //end for y
 
-  cout << "Ore: " << player["ore"] << " Artifacts: " << player["artifacts"];
-  cout << " Coins: " << player["coins"] << '\n';
+  std::cout << "Ore: " << player["ore"] << " Artifacts: " << player["artifacts"];
+  std::cout << " Coins: " << player["coins"] << " HP: " << player["health"] << '\n';
   return;
 }
 ///////////////////////////////////////////////////////////////////////////////
@@ -287,7 +301,7 @@ static void Move(int x) {
       }
       break;
     case 3: //s, down
-      if (player["Y"] < MAP_UPPER-player["sight"]-1) {
+      if (player["Y"] < GRID_UPPER-player["sight"]-1) {
         CollectItem(player["Y"]+1,player["X"]);
         grid[player["Y"]+1][player["X"]] = PLAYER;
         grid[player["Y"]][player["X"]] = MINED;
@@ -295,7 +309,7 @@ static void Move(int x) {
       }
       break;
     case 4: //d, right
-      if (player["X"] < MAP_UPPER-player["sight"]-1) {
+      if (player["X"] < GRID_UPPER-player["sight"]-1) {
         CollectItem(player["Y"],player["X"]+1);
         grid[player["Y"]][player["X"]+1] = PLAYER;
         grid[player["Y"]][player["X"]] = MINED;
@@ -313,17 +327,13 @@ static void CollectItem(int y, int x) {
     int z = rand() % 100;
     if (z == 0 || z == 1) { //1% chance artifact, 1% chance ore
       if (z == 0) {
-        cout << "\nWhile digging, you found an ancient artifact!" << '\n';
+        std::cout << "\nWhile digging, you found an ancient artifact!" << '\n';
         player["artifacts"]++;
       } else {
-        cout << "\nWhile digging, you found a rare ore!" << '\n';
+        std::cout << "\nWhile digging, you found a rare ore!" << '\n';
         player["ore"]++;
       }
-      #ifdef _WIN32
-      Sleep(1300);
-      #else
-      sleep(1);
-      #endif
+      MySleep(1.3);
     } else { //98% chance dirt
       player["dirt"]++;
     }
@@ -332,21 +342,13 @@ static void CollectItem(int y, int x) {
     CallShop();
 
   } else if (grid[y][x] == ARTIFACT) {
-    cout << "\nWhile digging, you found an ancient artifact!" << '\n';
-    #ifdef _WIN32
-    Sleep(1000);
-    #else
-    sleep(1);
-    #endif
+    std::cout << "\nWhile digging, you found an ancient artifact!" << '\n';
+    MySleep(1);
     player["artifacts"]++;
 
   } else if (grid[y][x] == ORE) {
-    cout << "\nWhile digging, you found a rare ore!" << '\n';
-    #ifdef _WIN32
-    Sleep(1000);
-    #else
-    sleep(1);
-    #endif
+    std::cout << "\nWhile digging, you found a rare ore!" << '\n';
+    MySleep(1);
     player["ore"]++;
 
   } else if (grid[y][x] == MINER) {
@@ -356,36 +358,32 @@ static void CollectItem(int y, int x) {
 ///////////////////////////////////////////////////////////////////////////////
 
 //calls shop when player steps into a shop
-void CallShop() {
+static void CallShop() {
   bool finish = false;
   bool asked = false;
   char x;
 
-  cin.clear(); //ensures player actually gets asked the questions
-  cout << "You come across a small opening and see that there's a store inside.\n";
-  cout << "Would you like to shop? I buy Ore! Enter Y if yes!\n";
-  cin >> x;
-  cin.clear();
+  std::cin.clear(); //ensures player actually gets asked the questions
+  std::cout << "You come across a small opening and see that there's a store inside.\n";
+  std::cout << "Would you like to shop? I buy Ore! Enter Y if yes!\n";
+  std::cin >> x;
+  std::cin.clear();
 
   if (!(x == 'y' || x == 'Y')) {
-    cout << "This could be goodbye forever. Enter Y if you want to shop.\n";
-    cin >> x;
+    std::cout << "This could be goodbye forever. Enter Y if you want to shop.\n";
+    std::cin >> x;
   }
 
   if (x == 'y' || x == 'Y') {
     while (!finish) {
-      cout << "\n\nYou take inventory: Ore: " << player["ore"] << " Artifacts: ";
-      cout << player["artifacts"] << " Coins " << player["coins"] << '\n';
-      #ifdef _WIN32
-      Sleep(1500);
-      #else
-      sleep(1);
-      #endif
+      std::cout << "\n\nYou take inventory: Ore: " << player["ore"] << " Artifacts: ";
+      std::cout << player["artifacts"] << " Coins " << player["coins"] << '\n';
+      MySleep(2);
       
-      cout << "\nThe shop owner poins to a sign that reads: Pick:\n";
-      cout << "1. Sell ore (5/pc!)\n2. Buy artifacts (30/pc)\n";
-      cout << "3. Deal of the Day\n4. Leave\n\nWhat would you like to do?\n";
-      cin >> x;
+      std::cout << "\nThe shop owner poins to a sign that reads: Pick:\n";
+      std::cout << "1. Sell ore (5/pc!)\n2. Buy artifacts (30/pc)\n";
+      std::cout << "3. Deal of the Day\n4. Leave\n\nWhat would you like to do?\n";
+      std::cin >> x;
 
       if (x == '1' || x == '2' || x == '3' || x == '4') {
         if (x == '1')
@@ -400,12 +398,8 @@ void CallShop() {
             asked = true;
 
           } else {
-            cout << "We've already discussed that. I'm not sayin it all again.\n\n";
-            #ifdef _WIN32
-            Sleep(1500);
-            #else
-            sleep(1);
-            #endif
+            std::cout << "We've already discussed that. I'm not sayin it all again.\n\n";
+            MySleep(2);
           }
         } else
           finish = true;
@@ -415,33 +409,21 @@ void CallShop() {
           finish = true;
 
         else {
-          cout << "Sorry, I didn't get that. Which number did you want?\n\n";
-          #ifdef _WIN32
-          Sleep(1500);
-          #else
-          sleep(1);
-          #endif
+          std::cout << "Sorry, I didn't get that. Which number did you want?\n\n";
+          MySleep(2);
         }
       }
     } //end while
   } //end if x == y
 
-  cout << "Alright, see you later. Oh, and grab some bread on your way out. Keeps ya hardy.\n";
-  #ifdef _WIN32
-  Sleep(1500);
-  #else
-  sleep(1);
-  #endif
+  std::cout << "Alright, see you later. Oh, and grab some bread on your way out. Keeps ya hardy.\n";
+  MySleep(2);
 
   player["health"] = player["maxHP"]; //heals player
-  cout << "The bread looks delicious. You grab some and take a bite. On your way out you feel";
-  cout << " refreshed. Ahh, bread.\n";
+  std::cout << "The bread looks delicious. You grab some and take a bite. On your way out you feel";
+  std::cout << " refreshed. Ahh, bread.\n";
 
-  #ifdef _WIN32
-  Sleep(2000);
-  #else
-  sleep(2);
-  #endif
+  MySleep(2);
   return;
 }
 ///////////////////////////////////////////////////////////////////////////////
@@ -449,10 +431,11 @@ void CallShop() {
 //initializes globals and calls GenMap
 static void Init() {
   //set globals
-  player["X"] = player["Y"] = MAP_UPPER/2;//player starting in middle of the map
+  player["X"] = player["Y"] = GRID_UPPER/2;//player starting in middle of the map
   player["sight"] = 4; //sees 4 blocks in any direction
   player["damage"] = 10;
   player["ore"] = player["artifacts"] = player["dirt"] = player["coins"] = 0;
+  player["kills"] = 0;
   player["health"] = player["maxHP"] = 35;
 
   game = true;
@@ -461,7 +444,7 @@ static void Init() {
   }
 
   //make and set map
-  GenerateMap();
+  GenerateGrid();
 }
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -471,50 +454,34 @@ static void SellOre() {
   char x;
 
   if (player["ore"] == 0) {
-    cout << "Oh... it doesn't look like you're carrying any ore to sell.\n";
-    #ifdef _WIN32
-    Sleep(1500);
-    #else
-    sleep(1);
-    #endif
+    std::cout << "Oh... it doesn't look like you're carrying any ore to sell.\n";
+    MySleep(2);
 
   } else {
     while (!finish && player["ore"] > 0) {
-      cout << "Would you like to sell any ore? 5 coins per piece! Enter Y if yes.\n";
-      cin >> x;
+      std::cout << "Would you like to sell any ore? 5 coins per piece! Enter Y if yes.\n";
+      std::cin >> x;
 
       if (x == 'y' || x == 'Y') {
-        cout << "How much?\n";
+        std::cout << "How much?\n";
         int z;
-        cin >> z;
+        std::cin >> z;
 
         if (z > player["ore"]) {
-          cout << "You don't have enough ore! You only have " << player["ore"] << " ore\n\n";
-          #ifdef _WIN32
-          Sleep(1500);
-          #else
-          sleep(1);
-          #endif
+          std::cout << "You don't have enough ore! You only have " << player["ore"] << " ore\n\n";
+          MySleep(2);
 
         } else {
           player["ore"] -= z;
           player["coins"] += z*5;
-          cout << "Pleasure doing business with you!\n\n";
-          #ifdef _WIN32
-          Sleep(1500);
-          #else
-          sleep(1);
-          #endif
+          std::cout << "Pleasure doing business with you!\n\n";
+          MySleep(2);
         }
       } else {
 
-        cout << "Alright, no ore.\n\n";
+        std::cout << "Alright, no ore.\n\n";
         finish = true;
-        #ifdef _WIN32
-        Sleep(1500);
-        #else
-        sleep(1);
-        #endif
+        MySleep(2);
       }
     } //end while
   } //end else
@@ -530,40 +497,28 @@ static void BuyArtifacts() {
 
   while (!finish && (player["coins"] >= 30 || first)) {
     if (first) first = false;
-    cout << "Price is 30 coins per artifact. Do you want to buy any? Enter Y if yes.\n";
-    cin >> x;
+    std::cout << "Price is 30 coins per artifact. Do you want to buy any? Enter Y if yes.\n";
+    std::cin >> x;
 
     if (x == 'y' || x == 'Y') {
-      cout << "How much?\n";
-      cin >> z;
+      std::cout << "How much?\n";
+      std::cin >> z;
 
       if (z*30 > player["coins"]) {
-        cout << "You don't have enough coins! You only have " << player["coins"] << " coins\n\n";
-        #ifdef _WIN32
-        Sleep(1500);
-        #else
-        sleep(1);
-        #endif
+        std::cout << "You don't have enough coins! You only have " << player["coins"] << " coins\n\n";
+        MySleep(2);
 
       } else {
         player["coins"] -= z*30;
         player["artifacts"] += z;
-        cout << "Pleasure doing business with you!\n\n";
-        #ifdef _WIN32
-        Sleep(1500);
-        #else
-        sleep(1);
-        #endif
+        std::cout << "Pleasure doing business with you!\n\n";
+        MySleep(2);
       }
     } else {
 
-      cout << "Okay.\n\n";
+      std::cout << "Okay.\n\n";
       finish = true;
-      #ifdef _WIN32
-      Sleep(1500);
-      #else
-      sleep(1);
-      #endif
+      MySleep(2);
     } //end else
   } //end while
 }
@@ -580,67 +535,51 @@ static void Trade() {
   int cost = rand() % 35;
   if (cost < 15) { cost += 15; }
 
-  cout << "\nOkay, I only have one fine deal for you.\n";
-  cout << "If you have " << cost << " ancient artifacts then I may consider selling...\n";
-  cout << "The only item that would help you is a magnificent Upgrade!\n\n";
+  std::cout << "\nOkay, I only have one fine deal for you.\n";
+  std::cout << "If you have " << cost << " ancient artifacts then I may consider selling...\n";
+  std::cout << "The only item that would help you is a magnificent Upgrade!\n\n";
 
   int random = rand() % z; //0-3, picks what upgrade the shop has
 
   if (upgrades[random] >= 3) { //3 is the max level an upgrade can achieve
-    cout << "Oh... It looks like you already have the upgrade I was going to offer.\n";
-    cout << "Looks like I have nothing special, sorry!\n";
-    #ifdef _WIN32
-    Sleep(1500);
-    #else
-    sleep(1);
-    #endif
+    std::cout << "Oh... It looks like you already have the upgrade I was going to offer.\n";
+    std::cout << "Looks like I have nothing special, sorry!\n";
+    MySleep(2);
 
   } else {
     switch(random) {
       case 0:
-        cout << "This enhancement will augment your weapon to be far superior.\n";
+        std::cout << "This enhancement will augment your weapon to be far superior.\n";
         break;
       case 1:
-        cout << "This enhancement will give you extra sight in the mines.\n";
+        std::cout << "This enhancement will give you extra sight in the mines.\n";
         break;
       case 2:
-        cout << "This enhancement will allow you to swing wider.\n";
+        std::cout << "This enhancement will allow you to swing wider.\n";
         cost += 10; //upgrade costs more due to power
         break;
       case 3:
-        cout << "This enhancement will allow you to dig deeper.\n";
+        std::cout << "This enhancement will allow you to dig deeper.\n";
         cost += 10; //upgrade costs more due to power
         break;
     } //end switch
 
-    cout << "Do you want to buy it for " << cost << " artifacts? Enter Y if yes.\n";
-    cin >> x;
+    std::cout << "Do you want to buy it for " << cost << " artifacts? Enter Y if yes.\n";
+    std::cin >> x;
     if (x == 'y' || x == 'Y') {
       if (player["artifacts"] >= cost) {
         player["artifacts"] -= cost;
         Upgrade(random);
-        cout << "Pleasure doing business with you!\n\n";
-        #ifdef _WIN32
-        Sleep(1500);
-        #else
-        sleep(1);
-        #endif
+        std::cout << "Pleasure doing business with you!\n\n";
+        MySleep(2);
 
       } else {
-        cout << "Looks like you don't have enough artifacts for me. Figures...\n\n";
-        #ifdef _WIN32
-        Sleep(1500);
-        #else
-        sleep(1);
-        #endif
+        std::cout << "Looks like you don't have enough artifacts for me. Figures...\n\n";
+        MySleep(2);
       }
     } else {
-      cout << "Right... You're missing out buddy.\n\n";
-      #ifdef _WIN32
-      Sleep(1500);
-      #else
-      sleep(1);
-      #endif
+      std::cout << "Right... You're missing out buddy.\n\n";
+      MySleep(2);
     }
   }
 }
@@ -666,12 +605,14 @@ static void Upgrade(int x) {
       break;
     case 2:
       upgrades[2] += 3; //mining width
-      cout << ("\nUpgrade not fully implemented.\n");
+      std::cout << ("\nUpgrade not fully implemented.\n");
+      MySleep(2);
       // TODO: implement mining width upgrade
       break;
     case 3:
       upgrades[3] += 3; //mining depth
-      cout << ("\nUpgrade not fully implemented.\n");
+      std::cout << ("\nUpgrade not fully implemented.\n");
+      MySleep(2);
       // TODO: implement mining depth upgrade
       break;
   } //end switch
@@ -680,7 +621,7 @@ static void Upgrade(int x) {
 
 //processes final game statistics
 static void GameReport() { 
-  cout << "\n\nGame Over!\n";
+  std::cout << "\n\nGame Over!\n";
   int upg = 0;
   int score = -140; //accounts for initial values player starts with
 
@@ -698,62 +639,42 @@ static void GameReport() {
   score += player["damage"]*5;
   score += player["sight"]*5;
   score += player["maxHP"]*2;
+  score += player["kills"]*50;
 
-  cout << "Total Score: " << score << "\n\n";
-  #ifdef _WIN32
-  Sleep(500);
-  #else
-  sleep(1);
-  #endif
+  std::cout << "Total Score: " << score << "\n\n";
+  MySleep(1);
 
-  cout << "Dirt: " << player["dirt"] << '\n';
-  #ifdef _WIN32
-  Sleep(500);
-  #else
-  sleep(1);
-  #endif
+  std::cout << "Dirt: " << player["dirt"] << '\n';
+  MySleep(1);
 
-  cout << "Ore: " << player["ore"] << '\n';
-  #ifdef _WIN32
-  Sleep(500);
-  #else
-  sleep(1);
-  #endif
+  std::cout << "Ore: " << player["ore"] << '\n';
+  MySleep(1);
 
-  cout << "Artifacts: " << player["artifacts"] << '\n';
-  #ifdef _WIN32
-  Sleep(500);
-  #else
-  sleep(1);
-  #endif
+  std::cout << "Artifacts: " << player["artifacts"] << '\n';
+  MySleep(1);
 
-  cout << "Coins: " << player["coins"] << '\n';
-  #ifdef _WIN32
-  Sleep(500);
-  #else
-  sleep(1);
-  #endif
+  std::cout << "Coins: " << player["coins"] << '\n';
+  MySleep(1);
 
-  cout << "Upgrades aquired: " << upg << "\n\n";
-  #ifdef _WIN32
-  Sleep(500);
-  #else
-  sleep(1);
-  #endif
+  std::cout << "Upgrades aquired: " << upg << '\n';
+  MySleep(1);
+
+  std::cout << "Miners slayed: " << player["kills"] << "\n\n";
+  MySleep(1);
 }
 ///////////////////////////////////////////////////////////////////////////////
 
 //introduces game mechanics
 static void Intro() {
   int x;
-  cin.clear();
-  cout << "\nHello... You're finally awake.\nI have kept you safe this long but ";
-  cout << "you must continue this journey on your own.\n\nUse WASD to move. ";
-  cout << "The Deep Below is endless, so mine to your heart's content.\n";
-  cout << "And beware of others... you aren't alone down here.\n\n";
-  cout << "Once you are finished, enter q to get a final score. Press any key to begin.\n";
-  cin >> x;
-  PrintMap();
+  std::cin.clear();
+  std::cout << "\nHello... You're finally awake.\nI have kept you safe this long but ";
+  std::cout << "you must continue this journey on your own.\n\nUse WASD to move. ";
+  std::cout << "The Deep Below is endless, so mine to your heart's content.\n";
+  std::cout << "And beware of others... you aren't alone down here.\n\n";
+  std::cout << "Once you are finished, enter q to get a final score. Press any key to begin.\n";
+  std::cin >> x;
+  PrintGrid();
 }
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -797,8 +718,13 @@ static void MoveMiner(Rogue &miner) {
         temp = ProcessBlock(miner, miner.y-1, miner.x);
         if (temp) {
           grid[miner.y-1][miner.x] = MINER;
-          grid[miner.y][miner.x] = MINED;
+          if (grid[miner.y][miner.x] != PLAYER)
+            grid[miner.y][miner.x] = MINED;
+          else
+            grid[miner.y][miner.x] = PLAYER;
           miner.y--;
+        } else {
+          grid[miner.y][miner.x] = MINER;
         }
       }
       break;
@@ -807,28 +733,43 @@ static void MoveMiner(Rogue &miner) {
         temp = ProcessBlock(miner, miner.y, miner.x-1);
         if (temp) {
           grid[miner.y][miner.x-1] = MINER;
-          grid[miner.y][miner.x] = MINED;
+          if (grid[miner.y][miner.x] != PLAYER)
+            grid[miner.y][miner.x] = MINED;
+          else
+            grid[miner.y][miner.x] = PLAYER;
           miner.x--;
+        } else {
+          grid[miner.y][miner.x] = MINER;
         }
       }
       break;
     case 2: //down
-      if (miner.y < MAP_UPPER-1) {
+      if (miner.y < GRID_UPPER-1) {
         temp = ProcessBlock(miner, miner.y+1, miner.x);
         if (temp) {
           grid[miner.y+1][miner.x] = MINER;
-          grid[miner.y][miner.x] = MINED;
+          if (grid[miner.y][miner.x] != PLAYER)
+            grid[miner.y][miner.x] = MINED;
+          else
+            grid[miner.y][miner.x] = PLAYER;
           miner.y++;
+        } else {
+          grid[miner.y][miner.x] = MINER;
         }
       }
       break;
     case 3: //right
-      if (miner.x < MAP_UPPER-1) {
+      if (miner.x < GRID_UPPER-1) {
         temp = ProcessBlock(miner, miner.y, miner.x+1);
         if (temp) {
           grid[miner.y][miner.x+1] = MINER;
-          grid[miner.y][miner.x] = MINED;
+          if (grid[miner.y][miner.x] != PLAYER)
+            grid[miner.y][miner.x] = MINED;
+          else
+            grid[miner.y][miner.x] = PLAYER;
           miner.x++;
+        } else {
+          grid[miner.y][miner.x] = MINER;
         }
       }
       break;
@@ -867,9 +808,9 @@ static bool ProcessBlock(Rogue &miner, int y, int x) {
 
 //outputs the current grid to a file
 static void SaveGrid() {
-  static ofstream MyFile("grid.txt");
-  for (int y = 0; y < MAP_UPPER; y++) {
-    for (int x = 0; x < MAP_UPPER; x++) {
+  static std::ofstream MyFile("grid.txt");
+  for (int y = 0; y < GRID_UPPER; y++) {
+    for (int x = 0; x < GRID_UPPER; x++) {
       MyFile << grid[y][x];
     }
     MyFile << '\n';
@@ -880,89 +821,89 @@ static void SaveGrid() {
 
 //processes player fighting with enemy miner
 static void MinerFight(int y, int x) {
-  cout << "You approach this enemy miner and, remembering what She told you\n";
-  cout << ", you take out your sword and swing!\n";
+  std::cout << "You have come across another miner. They are competition.\n";
+  std::cout << "Do you swing? Enter Y for yes.\n";
 
-  int enemyIndex; // in MinerList
-  for (long long unsigned int i = 0; i < MinerList.size(); i++) {
-    if (MinerList[i].y == y && MinerList[i].x == x) {
-      enemyIndex = i;
-      break;
+  char in;
+  std::cin.clear();
+  std::cin >> in;
+
+  if (in == 'Y' || in == 'y') {
+
+    int enemyIndex; // in MinerList
+    for (long long unsigned int i = 0; i < MinerList.size(); i++) {
+      if (MinerList[i].y == y && MinerList[i].x == x) {
+        enemyIndex = i;
+        break;
+      }
     }
-  }
 
-  int deviation = rand() % 5;
-  int damage; //makes damage randomly 0-2 +/- different than actual player dmg
-  if (deviation == 0) {
-    damage = player["damage"];
-  } else if (deviation == 1 || deviation == 2) {
-    damage = player["damage"] - deviation;
+    int deviation = rand() % 5;
+    int damage; //makes damage randomly 0-2 +/- different than actual player dmg
+    if (deviation == 0) {
+      damage = player["damage"];
+    } else if (deviation == 1 || deviation == 2) {
+      damage = player["damage"] - deviation;
+    } else {
+      damage = player["damage"] + (deviation-2);
+    }
+    std::cout << "You approach the miner and swing with all your might.\n";
+    std::cout << "You dealt " << damage << " damage to the miner.\n";
+    MySleep(2);
+
+    MinerList[enemyIndex].health -= damage;
+
+    if (MinerList[enemyIndex].health <= 0) { //if miner dies
+      std::cout << "AAAGH... the miner lets out a last scream before falling down.\n";
+      std::cout << "They won't be getting back up from that.\n";
+      MySleep(2);
+
+      MinerList[enemyIndex].health = 0;
+      MinerList[enemyIndex].x = -1;
+      MinerList[enemyIndex].y = -1;
+      player["kills"]++;
+
+      std::cout << "You gain " << MinerList[enemyIndex].coins << " coins.\n";
+      MySleep(2);
+
+      player["coins"] += MinerList[enemyIndex].coins;
+
+    } else { //miner retaliates
+      damage = rand() % 4;
+      damage += 6;
+
+      std::cout << "The miner swings their pick back and dealt " << damage;
+      std::cout << " damage!\n";
+      MySleep(2);
+
+      player["health"] -= damage;
+      if (player["health"] <= 0) {
+        game = false;
+
+        std::cout << "The pick impales you and leaves you with a gash too wide to mend.";
+        MySleep(2);
+
+        std::cout << "\nYou fall down on the hard rocks and reflect as you die.\n";
+        MySleep(3);
+        player["health"] = 0;
+      }
+    }
   } else {
-    damage = player["damage"] + (deviation-2);
+    std::cout << "He raises his pick to swing at you but doesn't. You brush past each other.\n";
+    MySleep(2);
   }
-  
-  cout << "You dealt " << damage << "to the miner.\n";
+}
+///////////////////////////////////////////////////////////////////////////////
+
+//saves a lot of typing the ifdef else every time
+static void MySleep(double seconds) {
   #ifdef _WIN32
-  Sleep(1500);
+  seconds *= 1000;
+  Sleep(seconds);
+
   #else
-  sleep(1);
+  seconds = (int)seconds;
+  sleep(second);
   #endif
-
-  MinerList[enemyIndex].health -= damage;
-
-  if (MinerList[enemyIndex].health <= 0) { //if miner dies
-    cout << "AAAGH... the miner lets out a last scream before falling down.\n";
-    cout << "They won't be getting back up from that.\n";
-    #ifdef _WIN32
-    Sleep(1500);
-    #else
-    sleep(1);
-    #endif
-
-    MinerList[enemyIndex].health = 0;
-    MinerList[enemyIndex].x = -1;
-    MinerList[enemyIndex].y = -1;
-
-    cout << "You gain " << MinerList[enemyIndex].coins << " coins.\n";
-    #ifdef _WIN32
-    Sleep(1500);
-    #else
-    sleep(1);
-    #endif
-
-    player["coins"] += MinerList[enemyIndex].coins;
-
-  } else { //miner retaliates
-    damage = rand() % 4;
-    damage += 6;
-
-    cout << "The miner swings their pick back and deals " << damage;
-    cout << " damage!\n";
-    #ifdef _WIN32
-    Sleep(1500);
-    #else
-    sleep(1);
-    #endif
-
-    player["health"] -= damage;
-    if (player["health"] <= 0) {
-      game = false;
-
-      cout << "The pick impales you and leaves you with a gash too wide to mend.";
-      #ifdef _WIN32
-      Sleep(2000);
-      #else
-      sleep(2);
-      #endif
-
-      cout << "\nYou fall down on the hard rocks and reflect as you die.\n";
-      #ifdef _WIN32
-      Sleep(2000);
-      #else
-      sleep(2);
-      #endif
-      player["health"] = 0;
-    }
-  }
 }
 ///////////////////////////////////////////////////////////////////////////////
