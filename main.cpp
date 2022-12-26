@@ -22,12 +22,8 @@ $ is a friendly shop!
 Have fun!
 
 Implemented features:
-  Create and print grid
   Output grid to file
-  Track player items
-  Ore/Artifacts found randomly in dirt
-  Sometimes hides ore from sight
-  Movement
+  Rogue Enemy Miners to fight
   Shop system
     can sell ore
     can buy artifacts
@@ -35,15 +31,15 @@ Implemented features:
   Upgrades (2/5)
     Extra damage
     Extra sight
-  End Score System
+  End Score System  
 
 Agenda, in particular order:
-  Encrypted Save System
+  Encrypted Save and Load System
   Upgrades (3/5)
     mining width
     mining depth
     clarity (sees all special blocks all the time)
-  Rogue Enemy Miners to fight
+  
   Minibosses to fight
   Boss to fight
   Main Menu
@@ -57,15 +53,17 @@ Agenda, in particular order:
 #include <map>
 #include <string>
 #include <fstream>
-#ifdef _WIN32
+
+#ifdef   _WIN32
 #include <Windows.h>
-#else
+#else    //linux
 #include <unistd.h>
 #endif
 
 //enemy AI class
 struct Rogue {
   int damage, coins, ore, artifacts, health, x, y, direction;
+  bool moved;
 };
 
 //function prototypes
@@ -74,7 +72,7 @@ static void Intro();
 //main game functions
 static int  GameLoop();
 static void Move(int x);
-static void CollectItem(int y, int x);
+static bool CollectItem(int y, int x);
 static void GameReport();
 static void MySleep(double seconds);
 //map/grid functions
@@ -88,11 +86,11 @@ static void BuyArtifacts();
 static void Trade();
 static void Upgrade(int x);
 //enemy miner functions
-static void InitMiner(Rogue &miner, int y, int x);
+static void InitMiner(Rogue &miner);
 static void MoveMiners();
 static void MoveMiner(Rogue &miner);
 static bool ProcessBlock(Rogue &miner, int y, int x);
-static void MinerFight(int y, int x);
+static bool MinerFight(int y, int x);
 
 //Constants
 static const int GRID_UPPER = 2000; //2000x2000 grid, 4 million blocks
@@ -103,7 +101,7 @@ static const int GRID_UPPER = 2000; //2000x2000 grid, 4 million blocks
 #define SHOP     3
 #define ARTIFACT 4
 #define ORE      5
-#define MINER    6
+#define MINER    6 //enemy
 
 //global vars
 static bool game; //game on/off
@@ -120,17 +118,13 @@ int main() {
 
   //creates vector of all the enemy miners
   for (int i = 0; i < 2000; i++) {
-    y = rand() % 2000;
-    x = rand() % 2000;
-
     Rogue miner;
-    InitMiner(miner, y, x);
+    InitMiner(miner);
     MinerList.push_back(miner);
   }
 
   while(game) {
     MySleep(.2);
-
     action = GameLoop();
 
     switch (action) {
@@ -199,7 +193,7 @@ static void GenerateGrid() {
 //prints blocks around the player
 static void PrintGrid() {
   std::cout << "\n\n\n\n\n\n";
-  int y, x, a;
+  int y, x, chance;
 
   grid[player["y"]][player["x"]] = PLAYER;
 
@@ -227,8 +221,8 @@ static void PrintGrid() {
           break;
         case ARTIFACT: //ore and artifact have chance of not showing up
         case ORE:
-          a = rand() % 8;
-          if (a == 0) //12.5% chance of showing up in sight
+          chance = rand() % 8;
+          if (chance == 0) //12.5% chance of showing up in sight
             std::cout << "* ";
           else
             std::cout << "# ";
@@ -282,38 +276,48 @@ static int GameLoop() {
 ///////////////////////////////////////////////////////////////////////////////
 
 //adjusts players position on map based on keypress
-static void Move(int x) {
-  switch (x) {
+//parameter: int 1,2,3 or 4 of which direction to move player in
+static void Move(int direction) {
+  bool valid;
+  switch (direction) {
     case 1: //w, up
-      if (player["Y"] > player["sight"]) {
-        CollectItem(player["Y"]-1,player["X"]);
-        grid[player["Y"]-1][player["X"]] = PLAYER;
-        grid[player["Y"]][player["X"]] = MINED;
-        player["Y"]--;
+      if (player["Y"] > player["sight"]) { //makes sure it wont exceed map bounds
+        valid = CollectItem(player["Y"]-1,player["X"]); //processes block stepped on
+        if (valid) {
+          grid[player["Y"]-1][player["X"]] = PLAYER;
+          grid[player["Y"]][player["X"]] = MINED;
+          player["Y"]--;
+        }
       }
       break;
     case 2: //a, left
       if (player["X"] > player["sight"]) {
-        CollectItem(player["Y"],player["X"]-1);
-        grid[player["Y"]][player["X"]-1] = PLAYER;
-        grid[player["Y"]][player["X"]] = MINED;
-        player["X"]--;
+        valid = CollectItem(player["Y"],player["X"]-1);
+        if (valid) {
+          grid[player["Y"]][player["X"]-1] = PLAYER;
+          grid[player["Y"]][player["X"]] = MINED;
+          player["X"]--;
+        }
       }
       break;
     case 3: //s, down
       if (player["Y"] < GRID_UPPER-player["sight"]-1) {
-        CollectItem(player["Y"]+1,player["X"]);
-        grid[player["Y"]+1][player["X"]] = PLAYER;
-        grid[player["Y"]][player["X"]] = MINED;
-        player["Y"]++;
+        valid = CollectItem(player["Y"]+1,player["X"]);
+        if (valid) {
+          grid[player["Y"]+1][player["X"]] = PLAYER;
+          grid[player["Y"]][player["X"]] = MINED;
+          player["Y"]++;
+        }
       }
       break;
     case 4: //d, right
       if (player["X"] < GRID_UPPER-player["sight"]-1) {
-        CollectItem(player["Y"],player["X"]+1);
-        grid[player["Y"]][player["X"]+1] = PLAYER;
-        grid[player["Y"]][player["X"]] = MINED;
-        player["X"]++;
+        valid = CollectItem(player["Y"],player["X"]+1);
+        if (valid) {
+          grid[player["Y"]][player["X"]+1] = PLAYER;
+          grid[player["Y"]][player["X"]] = MINED;
+          player["X"]++;
+        }
       }
       break;
   }
@@ -321,39 +325,46 @@ static void Move(int x) {
 ///////////////////////////////////////////////////////////////////////////////
 
 //processes block player stepped on
-static void CollectItem(int y, int x) {
+//parameters: YX co-ord. of the item to be collected by player
+static bool CollectItem(int y, int x) {
   if (grid[y][x] == DIRT) {
 
     int z = rand() % 100;
-    if (z == 0 || z == 1) { //1% chance artifact, 1% chance ore
-      if (z == 0) {
-        std::cout << "\nWhile digging, you found an ancient artifact!" << '\n';
-        player["artifacts"]++;
-      } else {
-        std::cout << "\nWhile digging, you found a rare ore!" << '\n';
-        player["ore"]++;
-      }
+    if (z == 0) { //1% chance artifact in dirt
+      std::cout << "\nWhile digging, you found an ancient artifact!" << '\n';
+      player["artifacts"]++;
       MySleep(1.3);
-    } else { //98% chance dirt
-      player["dirt"]++;
+    } 
+    else if (z == 1) { //1% chance ore in dirt
+      std::cout << "\nWhile digging, you found a rare ore!" << '\n';
+      player["ore"]++;
+      MySleep(1.3);
     }
+      
+    //98% chance dirt
+    player["dirt"]++;
+  } 
 
-  } else if (grid[y][x] == SHOP) {
+  else if (grid[y][x] == SHOP) {
     CallShop();
+  } 
 
-  } else if (grid[y][x] == ARTIFACT) {
+  else if (grid[y][x] == ARTIFACT) {
     std::cout << "\nWhile digging, you found an ancient artifact!" << '\n';
     MySleep(1);
     player["artifacts"]++;
+  }
 
-  } else if (grid[y][x] == ORE) {
+  else if (grid[y][x] == ORE) {
     std::cout << "\nWhile digging, you found a rare ore!" << '\n';
     MySleep(1);
     player["ore"]++;
+  } 
 
-  } else if (grid[y][x] == MINER) {
-    MinerFight(y,x);
+  else if (grid[y][x] == MINER) {
+    return MinerFight(y,x); //valid only if miner dies
   }
+  return true;
 }
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -375,6 +386,7 @@ static void CallShop() {
   }
 
   if (x == 'y' || x == 'Y') {
+    //main store loop
     while (!finish) {
       std::cout << "\n\nYou take inventory: Ore: " << player["ore"] << " Artifacts: ";
       std::cout << player["artifacts"] << " Coins " << player["coins"] << '\n';
@@ -385,7 +397,7 @@ static void CallShop() {
       std::cout << "3. Deal of the Day\n4. Leave\n\nWhat would you like to do?\n";
       std::cin >> x;
 
-      if (x == '1' || x == '2' || x == '3' || x == '4') {
+      if (x == '1' || x == '2' || x == '3' || x == '4' || x == 'q') {
         if (x == '1')
           SellOre();
 
@@ -401,19 +413,15 @@ static void CallShop() {
             std::cout << "We've already discussed that. I'm not sayin it all again.\n\n";
             MySleep(2);
           }
-        } else
+          
+        } else //q or 4
           finish = true;
 
-      } else {
-        if (x == 'q')
-          finish = true;
-
-        else {
-          std::cout << "Sorry, I didn't get that. Which number did you want?\n\n";
-          MySleep(2);
-        }
-      }
-    } //end while
+      } else { //invalid input
+        std::cout << "Sorry, I didn't get that. Which number did you want?\n\n";
+        MySleep(2);
+      } //end input if/else
+    } //end store while loop
   } //end if x == y
 
   std::cout << "Alright, see you later. Oh, and grab some bread on your way out. Keeps ya hardy.\n";
@@ -450,85 +458,56 @@ static void Init() {
 
 //shop helper if you want to sell ore
 static void SellOre() {
-  bool finish = false;
-  char x;
+  int temp;
 
-  if (player["ore"] == 0) {
-    std::cout << "Oh... it doesn't look like you're carrying any ore to sell.\n";
+  std::cout << "How much?\n";
+  std::cin >> temp;
+
+  if (temp > player["ore"]) {
+    std::cout << "You don't have enough ore! You only have " << player["ore"] << " ore\n\n";
     MySleep(2);
-
-  } else {
-    while (!finish && player["ore"] > 0) {
-      std::cout << "Would you like to sell any ore? 5 coins per piece! Enter Y if yes.\n";
-      std::cin >> x;
-
-      if (x == 'y' || x == 'Y') {
-        std::cout << "How much?\n";
-        int z;
-        std::cin >> z;
-
-        if (z > player["ore"]) {
-          std::cout << "You don't have enough ore! You only have " << player["ore"] << " ore\n\n";
-          MySleep(2);
-
-        } else {
-          player["ore"] -= z;
-          player["coins"] += z*5;
-          std::cout << "Pleasure doing business with you!\n\n";
-          MySleep(2);
-        }
-      } else {
-
-        std::cout << "Alright, no ore.\n\n";
-        finish = true;
-        MySleep(2);
-      }
-    } //end while
-  } //end else
+  } 
+  else if (temp == 0) {
+    std::cout << "Alright...\n";
+    MySleep(2);
+  }
+  else {
+    player["ore"] -= temp;
+    player["coins"] += temp*5;
+    std::cout << "Pleasure doing business with you!\n\n";
+    MySleep(2);
+  }
 }
 ///////////////////////////////////////////////////////////////////////////////
 
 //shop helper if you want to buy artifacts
 static void BuyArtifacts() {
-  bool finish = false;
-  bool first = true;
-  char x;
-  int z;
+  int temp;
 
-  while (!finish && (player["coins"] >= 30 || first)) {
-    if (first) first = false;
-    std::cout << "Price is 30 coins per artifact. Do you want to buy any? Enter Y if yes.\n";
-    std::cin >> x;
+  std::cout << "How much?\n";
+  std::cin >> temp;
 
-    if (x == 'y' || x == 'Y') {
-      std::cout << "How much?\n";
-      std::cin >> z;
-
-      if (z*30 > player["coins"]) {
-        std::cout << "You don't have enough coins! You only have " << player["coins"] << " coins\n\n";
-        MySleep(2);
-
-      } else {
-        player["coins"] -= z*30;
-        player["artifacts"] += z;
-        std::cout << "Pleasure doing business with you!\n\n";
-        MySleep(2);
-      }
-    } else {
-
-      std::cout << "Okay.\n\n";
-      finish = true;
-      MySleep(2);
-    } //end else
-  } //end while
+  if (temp*30 > player["coins"]) {
+    std::cout << "You don't have enough coins! You only have " << player["coins"] << " coins\n\n";
+    MySleep(2);
+    return;
+  } 
+  else if (temp == 0) {
+    std::cout << "Umm... Okay.\n";
+    MySleep(2);
+  } else {
+    player["coins"] -= temp*30;
+    player["artifacts"] += temp;
+    std::cout << "Pleasure doing business with you!\n\n";
+    MySleep(2);
+  }
 }
 ///////////////////////////////////////////////////////////////////////////////
 
 //shop helper if you want to trade for an upgrade
 static void Trade() {
   char x;
-
-  int z = 4; //z is finished upgrades. max 10
+  int z = 4; //z is # of finished upgrades. max 10
 
   //cost ranges from 15-35
   //nums 16-29 have a higher probability
@@ -641,25 +620,25 @@ static void GameReport() {
   score += player["maxHP"]*2;
   score += player["kills"]*50;
 
-  std::cout << "Total Score: " << score << "\n\n";
+  std::cout << "Total Score:      " << score << "\n\n";
   MySleep(1);
 
-  std::cout << "Dirt: " << player["dirt"] << '\n';
+  std::cout << "Dirt:             " << player["dirt"] << '\n';
   MySleep(1);
 
-  std::cout << "Ore: " << player["ore"] << '\n';
+  std::cout << "Ore:              " << player["ore"] << '\n';
   MySleep(1);
 
-  std::cout << "Artifacts: " << player["artifacts"] << '\n';
+  std::cout << "Artifacts:        " << player["artifacts"] << '\n';
   MySleep(1);
 
-  std::cout << "Coins: " << player["coins"] << '\n';
+  std::cout << "Coins:            " << player["coins"] << '\n';
   MySleep(1);
 
   std::cout << "Upgrades aquired: " << upg << '\n';
   MySleep(1);
 
-  std::cout << "Miners slayed: " << player["kills"] << "\n\n";
+  std::cout << "Miners slayed:    " << player["kills"] << "\n\n";
   MySleep(1);
 }
 ///////////////////////////////////////////////////////////////////////////////
@@ -679,33 +658,42 @@ static void Intro() {
 ///////////////////////////////////////////////////////////////////////////////
 
 //creates initial values for the enemy miners
-static void InitMiner(Rogue &miner, int y, int x) {
+//parameters: miner to be initalized
+static void InitMiner(Rogue &miner) {
   miner.artifacts = 0;
   miner.coins = 25;
   miner.damage = 8;
   miner.ore = 0;
   miner.health = 30;
-  miner.x = x;
-  miner.y = y;
+  miner.x = rand() % 2000;
+  miner.y = rand() % 2000;
   miner.direction = rand() % 4;
-  grid[y][x] = MINER;
+  if (miner.x % 2 == 0)
+    miner.moved = false;
+  else
+    miner.moved = true;
+  grid[miner.y][miner.x] = MINER;
 }
 ///////////////////////////////////////////////////////////////////////////////
 
-//processes miner actions after player action
+//iterates through all miners to move them
 static void MoveMiners() {
   int x;
   for (long long unsigned int i = 0; i < MinerList.size(); i++) {
     if (MinerList[i].health != 0) {
-      x = rand() % 2;
-      if (x == 0)
+      if (MinerList[i].moved) { //moves every other time
         MoveMiner(MinerList[i]);
+        MinerList[i].moved = !MinerList[i].moved;
+      }
+      else
+        MinerList[i].moved = !MinerList[i].moved;
     }
   }
 }
 ///////////////////////////////////////////////////////////////////////////////
 
 //moves a miner on the map
+//parameter: miner to be moved
 static void MoveMiner(Rogue &miner) {
   int change = rand() % 10;
   if (change == 0)
@@ -778,26 +766,50 @@ static void MoveMiner(Rogue &miner) {
 ///////////////////////////////////////////////////////////////////////////////
 
 //returns true if valid move, false if invalid
+//special interaction on Shop blocks
+//parameters: miner to be moved and the YX co-ord. of where they want to go
 static bool ProcessBlock(Rogue &miner, int y, int x) {
   switch (grid[y][x]) {
-    case ORE:
+    case ORE: //adds ore to sell at shops
       miner.ore++;
       break;
-    case SHOP:
+    case SHOP: //makes miner more valuable to fight over time
+      //sells all ore and adds to miner coins
       for (int z = 0; z < miner.ore; z++) {
         miner.ore--;
         miner.coins += 5;
       }
+      //upgrades miner if they have enough artifacts
       if (miner.artifacts >= 10) {
         miner.artifacts -= 10;
         miner.damage += 5;
       }
+      //changes miner direction so they leave the shop and dont idle
+      miner.direction = rand() % 4;
       return false;
-    case ARTIFACT:
+    case ARTIFACT: //adds artifacts to upgrade dmg at shops
       miner.artifacts++;
       break;
-    case PLAYER:
-    case MINER:
+    case PLAYER: //damages player if theyre in the way
+      std::cout << "You spot a miner coming toward you and see a haze in their eyes.\n";
+      MySleep(1);
+      std::cout << "They don't seem to notice you and continue swinging their pickaxe";
+      std::cout << " even though you are in their way.\n";
+      MySleep(1);
+      std::cout << "You take " << miner.damage << " damage from the miner.\n\n";
+      MySleep(3);
+      player["health"] -= miner.damage;
+
+      //player death
+      if (player["health"] <= 0) {
+        game = false;
+        player["health"] = 0;
+        std::cout << "You've taken too much damage and the miner is merciless.\n";
+        std::cout << "You fall to the ground and the miner continues on their way\n";
+        MySleep(3);
+      }
+      return false;
+    case MINER: //doesn't allow miner overlap
       return false;
     default:
       break;
@@ -820,7 +832,8 @@ static void SaveGrid() {
 ///////////////////////////////////////////////////////////////////////////////
 
 //processes player fighting with enemy miner
-static void MinerFight(int y, int x) {
+//parameters: YX co-ord. of the miner to be faught
+static bool MinerFight(int y, int x) {
   std::cout << "You have come across another miner. They are competition.\n";
   std::cout << "Do you swing? Enter Y for yes.\n";
 
@@ -828,70 +841,76 @@ static void MinerFight(int y, int x) {
   std::cin.clear();
   std::cin >> in;
 
-  if (in == 'Y' || in == 'y') {
-
-    int enemyIndex; // in MinerList
-    for (long long unsigned int i = 0; i < MinerList.size(); i++) {
-      if (MinerList[i].y == y && MinerList[i].x == x) {
-        enemyIndex = i;
-        break;
-      }
-    }
-
-    int deviation = rand() % 5;
-    int damage; //makes damage randomly 0-2 +/- different than actual player dmg
-    if (deviation == 0) {
-      damage = player["damage"];
-    } else if (deviation == 1 || deviation == 2) {
-      damage = player["damage"] - deviation;
-    } else {
-      damage = player["damage"] + (deviation-2);
-    }
-    std::cout << "You approach the miner and swing with all your might.\n";
-    std::cout << "You dealt " << damage << " damage to the miner.\n";
-    MySleep(2);
-
-    MinerList[enemyIndex].health -= damage;
-
-    if (MinerList[enemyIndex].health <= 0) { //if miner dies
-      std::cout << "AAAGH... the miner lets out a last scream before falling down.\n";
-      std::cout << "They won't be getting back up from that.\n";
-      MySleep(2);
-
-      MinerList[enemyIndex].health = 0;
-      MinerList[enemyIndex].x = -1;
-      MinerList[enemyIndex].y = -1;
-      player["kills"]++;
-
-      std::cout << "You gain " << MinerList[enemyIndex].coins << " coins.\n";
-      MySleep(2);
-
-      player["coins"] += MinerList[enemyIndex].coins;
-
-    } else { //miner retaliates
-      damage = rand() % 4;
-      damage += 6;
-
-      std::cout << "The miner swings their pick back and dealt " << damage;
-      std::cout << " damage!\n";
-      MySleep(2);
-
-      player["health"] -= damage;
-      if (player["health"] <= 0) {
-        game = false;
-
-        std::cout << "The pick impales you and leaves you with a gash too wide to mend.";
-        MySleep(2);
-
-        std::cout << "\nYou fall down on the hard rocks and reflect as you die.\n";
-        MySleep(3);
-        player["health"] = 0;
-      }
-    }
-  } else {
+  if (!(in == 'Y' || in == 'y')) { //player doesnt want to fight
     std::cout << "He raises his pick to swing at you but doesn't. You brush past each other.\n";
     MySleep(2);
+    return false;
   }
+
+  //player fights
+  int enemyIndex; //index of miner in MinerList to fight
+  int deviation = rand() % 5; //random chance to change the dmg
+  int damage; 
+
+  //computes index
+  for (long long unsigned int i = 0; i < MinerList.size(); i++) {
+    if (MinerList[i].y == y && MinerList[i].x == x) {
+      enemyIndex = i;
+      break;
+    }
+  }
+
+  //computes damage
+  if (deviation == 0) //no change on dmg
+    damage = player["damage"];
+  else if (deviation == 1 || deviation == 2) //negative 1 or 2 from base dmg
+    damage = player["damage"] - deviation;
+  else //positive 1 or 2 from base dmg
+    damage = player["damage"] + (deviation-2);
+
+  //effects
+  std::cout << "You approach the miner and swing with all your might.\n";
+  std::cout << "You dealt " << damage << " damage to the miner.\n";
+  MySleep(2);
+  MinerList[enemyIndex].health -= damage;
+
+  if (MinerList[enemyIndex].health <= 0) { //if miner dies
+    std::cout << "AAAGH... the miner lets out a last scream before falling down.\n";
+    std::cout << "They won't be getting back up from that.\n";
+    MySleep(2);
+
+    MinerList[enemyIndex].health = 0;
+    MinerList[enemyIndex].x = -1;
+    MinerList[enemyIndex].y = -1;
+    player["kills"]++;
+
+    std::cout << "You gain " << MinerList[enemyIndex].coins << " coins.\n";
+    MySleep(2);
+
+    player["coins"] += MinerList[enemyIndex].coins;
+    return true;
+  } 
+  else { //miner lives and retaliates
+    damage = rand() % 4;
+    damage += 6;
+
+    std::cout << "The miner swings their pick back and dealt " << damage;
+    std::cout << " damage!\n";
+    MySleep(2);
+
+    player["health"] -= damage;
+    if (player["health"] <= 0) {
+      game = false;
+
+      std::cout << "The pick impales you and leaves you with a gash too wide to mend.";
+      MySleep(2);
+
+      std::cout << "\nYou fall down on the hard rocks and reflect as you die.\n";
+      MySleep(3);
+      player["health"] = 0;
+    }
+    return false;
+  } 
 }
 ///////////////////////////////////////////////////////////////////////////////
 
