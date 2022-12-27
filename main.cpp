@@ -28,21 +28,22 @@ Implemented features:
     can sell ore
     can buy artifacts
     can trade artifacts for upgrades
-  Upgrades (2/5)
+  Upgrades (3/5)
     Extra damage
     Extra sight
+    clarity (sees all special blocks more often)
   End Score System  
+  Main Menu
 
 Agenda, in particular order:
   Encrypted Save and Load System
-  Upgrades (3/5)
+  Upgrades (2/5)
     mining width
     mining depth
-    clarity (sees all special blocks all the time)
+    
   
   Minibosses to fight
   Boss to fight
-  Main Menu
 */
 
 #include <vector>
@@ -226,8 +227,8 @@ static void PrintGrid() {
           break;
         case ARTIFACT: //ore and artifact have chance of not showing up
         case ORE:
-          chance = rand() % 8;
-          if (chance == 0) //12.5% chance of showing up in sight
+          chance = rand() % (8 - (upgrades[4]*2)); //chance goes from 1/8 to 1/6 
+          if (chance == 0)       //to 1/4 to 1/2 chance of showing up on the map
             std::cout << "* ";
           else
             std::cout << "# ";
@@ -520,7 +521,7 @@ static void BuyArtifacts() {
 //shop helper if you want to trade for an upgrade
 static void Trade() {
   char input;
-  int implementedUpgrades = 4; //# of finished upgrades. max 10
+  int implementedUpgrades = 5; //# of finished upgrades. max 10
 
   //cost ranges from 15-35
   //nums 16-29 have a higher probability
@@ -554,6 +555,9 @@ static void Trade() {
         std::cout << "This enhancement will allow you to dig deeper.\n";
         cost += 10; //upgrade costs more due to power
         break;
+      case 4:
+        std::cout << "This enhancement will allow you to see more ore.\n";
+        break;
     } //end switch
 
     std::cout << "Do you want to buy it for " << cost << " artifacts? Enter Y if yes.\n";
@@ -579,14 +583,15 @@ static void Trade() {
 ///////////////////////////////////////////////////////////////////////////////
 
 /* UPGRADE LIST
-UPGRADES[0] = increases sword dmg
-UPGRADES[1] = increases sight
-UPGRADES[2] = increases mining depth
-UPGRADES[3] = increases mining width */
+upgrades[0] = increases sword dmg
+upgrades[1] = increases sight
+upgrades[2] = increases mining depth
+upgrades[3] = increases mining width 
+upgrades[4] = increases 'clarity', allowing for better sight on ore/artifacts
+*/
 
 //processes which upgrade to give player
 static void Upgrade(int x) {
-
   switch (x) {
     case 0:
       upgrades[0] += 1; //sword dmg
@@ -607,6 +612,9 @@ static void Upgrade(int x) {
       std::cout << ("\nUpgrade not fully implemented.\n");
       MySleep(2);
       // TODO: implement mining depth upgrade
+      break;
+    case 4:
+      upgrades[4]++;
       break;
   } //end switch
 }
@@ -669,11 +677,9 @@ static void Intro() {
 
   std::cout << "\n\nControls: \n   Enter WASD to move\n";
   MySleep(2);
-  std::cout << "   Enter Q to quit and get a final score\n";
-  MySleep(2);
   std::cout << "   Enter T to go to the title screen\n";
   MySleep(2);
-  std::cout << "   Enter O to output the map to a .txt file\n";
+  std::cout << "   Enter Q to quit and get a final score\n";
   MySleep(2);
   std::cout << "\nGood Luck Mining!";
   MySleep(2);
