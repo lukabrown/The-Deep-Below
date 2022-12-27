@@ -75,6 +75,8 @@ static void Move(int x);
 static bool CollectItem(int y, int x);
 static void GameReport();
 static void MySleep(double seconds);
+static void TitleScreen();
+static void InputClear();
 //map/grid functions
 static void GenerateGrid();
 static void PrintGrid();
@@ -114,7 +116,7 @@ int main() {
   Init(); //creates map and prints
   Intro(); //prints opening statement
 
-  int action, x, y;
+  int action;
 
   //creates vector of all the enemy miners
   for (int i = 0; i < 2000; i++) {
@@ -139,6 +141,9 @@ int main() {
         break;
       case 5:
         SaveGrid();
+        break;
+      case 6:
+        TitleScreen();
         break;
     } //end switch
     
@@ -247,8 +252,9 @@ static void PrintGrid() {
 //catches player movement and sends back
 static int GameLoop() {
   char input;
-  fflush(stdin);
+  InputClear();
   input = getchar();
+
   switch (input) {
     case 'q':
     case '0':
@@ -269,6 +275,9 @@ static int GameLoop() {
     case 'O':
     case 'o':
       return 5;
+    case 't':
+    case 'T':
+      return 6;
     default:
       return -1;
   } //end switch
@@ -374,14 +383,15 @@ static void CallShop() {
   bool asked = false;
   char x;
 
-  std::cin.clear(); //ensures player actually gets asked the questions
   std::cout << "You come across a small opening and see that there's a store inside.\n";
   std::cout << "Would you like to shop? I buy Ore! Enter Y if yes!\n";
+  InputClear();
   std::cin >> x;
-  std::cin.clear();
+  
 
   if (!(x == 'y' || x == 'Y')) {
     std::cout << "This could be goodbye forever. Enter Y if you want to shop.\n";
+    InputClear();
     std::cin >> x;
   }
 
@@ -395,6 +405,7 @@ static void CallShop() {
       std::cout << "\nThe shop owner poins to a sign that reads: Pick:\n";
       std::cout << "1. Sell ore (5/pc!)\n2. Buy artifacts (30/pc)\n";
       std::cout << "3. Deal of the Day\n4. Leave\n\nWhat would you like to do?\n";
+      InputClear();
       std::cin >> x;
 
       if (x == '1' || x == '2' || x == '3' || x == '4' || x == 'q') {
@@ -461,6 +472,7 @@ static void SellOre() {
   int temp;
 
   std::cout << "How much?\n";
+  InputClear();
   std::cin >> temp;
 
   if (temp > player["ore"]) {
@@ -485,6 +497,7 @@ static void BuyArtifacts() {
   int temp;
 
   std::cout << "How much?\n";
+  InputClear();
   std::cin >> temp;
 
   if (temp*30 > player["coins"]) {
@@ -506,8 +519,8 @@ static void BuyArtifacts() {
 
 //shop helper if you want to trade for an upgrade
 static void Trade() {
-  char x;
-  int z = 4; //z is # of finished upgrades. max 10
+  char input;
+  int implementedUpgrades = 4; //# of finished upgrades. max 10
 
   //cost ranges from 15-35
   //nums 16-29 have a higher probability
@@ -518,14 +531,14 @@ static void Trade() {
   std::cout << "If you have " << cost << " ancient artifacts then I may consider selling...\n";
   std::cout << "The only item that would help you is a magnificent Upgrade!\n\n";
 
-  int random = rand() % z; //0-3, picks what upgrade the shop has
+  int random = rand() % implementedUpgrades; //0-3, picks what upgrade the shop has
 
   if (upgrades[random] >= 3) { //3 is the max level an upgrade can achieve
     std::cout << "Oh... It looks like you already have the upgrade I was going to offer.\n";
     std::cout << "Looks like I have nothing special, sorry!\n";
     MySleep(2);
-
-  } else {
+  } 
+  else {
     switch(random) {
       case 0:
         std::cout << "This enhancement will augment your weapon to be far superior.\n";
@@ -544,8 +557,9 @@ static void Trade() {
     } //end switch
 
     std::cout << "Do you want to buy it for " << cost << " artifacts? Enter Y if yes.\n";
-    std::cin >> x;
-    if (x == 'y' || x == 'Y') {
+    InputClear();
+    std::cin >> input;
+    if (input == 'y' || input == 'Y') {
       if (player["artifacts"] >= cost) {
         player["artifacts"] -= cost;
         Upgrade(random);
@@ -646,13 +660,24 @@ static void GameReport() {
 //introduces game mechanics
 static void Intro() {
   int x;
-  std::cin.clear();
   std::cout << "\nHello... You're finally awake.\nI have kept you safe this long but ";
-  std::cout << "you must continue this journey on your own.\n\nUse WASD to move. ";
+  std::cout << "you must continue this journey on your own.\n\n";
   std::cout << "The Deep Below is endless, so mine to your heart's content.\n";
   std::cout << "And beware of others... you aren't alone down here.\n\n";
-  std::cout << "Once you are finished, enter q to get a final score. Press any key to begin.\n";
+  std::cout << "Press any key to begin.\n";
   std::cin >> x;
+
+  std::cout << "\n\nControls: \n   Enter WASD to move\n";
+  MySleep(2);
+  std::cout << "   Enter Q to quit and get a final score\n";
+  MySleep(2);
+  std::cout << "   Enter T to go to the title screen\n";
+  MySleep(2);
+  std::cout << "   Enter O to output the map to a .txt file\n";
+  MySleep(2);
+  std::cout << "\nGood Luck Mining!";
+  MySleep(2);
+
   PrintGrid();
 }
 ///////////////////////////////////////////////////////////////////////////////
@@ -678,7 +703,6 @@ static void InitMiner(Rogue &miner) {
 
 //iterates through all miners to move them
 static void MoveMiners() {
-  int x;
   for (long long unsigned int i = 0; i < MinerList.size(); i++) {
     if (MinerList[i].health != 0) {
       if (MinerList[i].moved) { //moves every other time
@@ -838,7 +862,7 @@ static bool MinerFight(int y, int x) {
   std::cout << "Do you swing? Enter Y for yes.\n";
 
   char in;
-  std::cin.clear();
+  InputClear();
   std::cin >> in;
 
   if (!(in == 'Y' || in == 'y')) { //player doesnt want to fight
@@ -924,5 +948,68 @@ static void MySleep(double seconds) {
   seconds = (int)seconds;
   sleep(second);
   #endif
+}
+///////////////////////////////////////////////////////////////////////////////
+
+//allows the player to explore options outside of the game
+static void TitleScreen() {
+  char input;
+  int upg = 0;
+
+  std::cout << "\n\n\n\n\n\n\n\nThe Deep Below\n\nTitle Screen:\n";
+  std::cout << "1. Save Game\n";
+  std::cout << "2. Load Game\n";
+  std::cout << "3. Output Map\n";
+  std::cout << "4. View Stats\n";
+  std::cout << "5. Exit Game\n";
+  std::cout << "What would you like to do? Enter the number.\n";
+  InputClear();
+  std::cin >> input;
+
+  switch (input) {
+    case '1':
+      std::cout << "Not fully implemented\n";
+      MySleep(2);
+      break;
+    case '2':
+      std::cout << "Not fully implemented\n";
+      MySleep(2);
+      break;
+    case '3':
+      std::cout << "Ouputting Map to grid.txt\n";
+      MySleep(2);
+      SaveGrid();
+      break;
+    case '4':
+      for (int i = 0; i < 10; i++) {
+        if (upgrades[i] > 0) {
+          upg += upgrades[i];
+        }
+      }
+
+      std::cout << "Dirt:             " << player["dirt"] << '\n';
+      MySleep(1);
+      std::cout << "Ore:              " << player["ore"] << '\n';
+      MySleep(1);
+      std::cout << "Artifacts:        " << player["artifacts"] << '\n';
+      MySleep(1);
+      std::cout << "Coins:            " << player["coins"] << '\n';
+      MySleep(1);
+      std::cout << "Upgrades aquired: " << upg << '\n';
+      MySleep(1);
+      std::cout << "Miners slayed:    " << player["kills"] << "\n\n";
+      MySleep(1);
+      break;
+    case '5':
+      game = false;
+      break;
+  }
+}
+///////////////////////////////////////////////////////////////////////////////
+
+//clears input, is called before any cin
+static void InputClear() {
+  std::cin.clear();
+  std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 }
 ///////////////////////////////////////////////////////////////////////////////
