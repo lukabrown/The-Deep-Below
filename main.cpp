@@ -34,14 +34,13 @@ Implemented features:
     clarity (sees all special blocks more often)
   End Score System  
   Main Menu
+  Saving and Loading from a file
 
 Agenda, in particular order:
-  Encrypted Save and Load System
+  Encrypted files
   Upgrades (2/5)
     mining width
     mining depth
-    
-  
   Minibosses to fight
   Boss to fight
 */
@@ -68,16 +67,19 @@ struct Rogue {
 };
 
 //function prototypes
+//intro/helper functions
 static void Init();
 static void Intro();
-//main game functions
+static void InputClear();
+static void MySleep(double seconds);
+static bool SaveGame(std::string name);
+static bool LoadGame(std::string name);
+//game functions
 static int  GameLoop();
 static void Move(int x);
 static bool CollectItem(int y, int x);
 static void GameReport();
-static void MySleep(double seconds);
 static void TitleScreen();
-static void InputClear();
 //map/grid functions
 static void GenerateGrid();
 static void PrintGrid();
@@ -97,7 +99,10 @@ static bool MinerFight(int y, int x);
 
 //Constants
 static const int GRID_UPPER = 2000; //2000x2000 grid, 4 million blocks
-//block types
+static const int MINERS = 2000; //num of enemy miners in the map
+static const int UPGRADE_UPPER = 5; //num of upgrades implemented
+
+//"block" types
 #define PLAYER   0
 #define DIRT     1
 #define MINED    2 //mined dirt
@@ -108,7 +113,7 @@ static const int GRID_UPPER = 2000; //2000x2000 grid, 4 million blocks
 
 //global vars
 static bool game; //game on/off
-static int upgrades[10]; //support for 10 upgrades, only 5 planned
+static int  upgrades[UPGRADE_UPPER]; //stores levels of upgrades
 static std::map<std::string, int> player; //dictionary of player items, defined in Init()
 static std::vector<std::vector<int>> grid(GRID_UPPER, std::vector<int> (GRID_UPPER)); //map
 static std::vector<Rogue> MinerList; //list of all enemy miners
@@ -120,7 +125,7 @@ int main() {
   int action;
 
   //creates vector of all the enemy miners
-  for (int i = 0; i < 2000; i++) {
+  for (int i = 0; i < MINERS; i++) {
     Rogue miner;
     InitMiner(miner);
     MinerList.push_back(miner);
@@ -191,7 +196,7 @@ static void GenerateGrid() {
       } //end switch
     } //end for x
   } //end for y
-  grid[player["Y"]][player["X"]] = PLAYER; //sets player position
+  grid[player["y"]][player["x"]] = PLAYER; //sets player position
   return;
 }
 ///////////////////////////////////////////////////////////////////////////////
@@ -203,13 +208,13 @@ static void PrintGrid() {
 
   grid[player["y"]][player["x"]] = PLAYER;
 
-  for (y = player["Y"]-player["sight"]; y < player["Y"]+player["sight"]+1; y++) {
+  for (y = player["y"]-player["sight"]; y < player["y"]+player["sight"]+1; y++) {
     if (y > GRID_UPPER-1)
       y = GRID_UPPER-1;
     else if (y < 0)
       y = 0;
 
-    for (x = player["X"]-player["sight"]; x < player["X"]+player["sight"]+1; x++) {
+    for (x = player["x"]-player["sight"]; x < player["x"]+player["sight"]+1; x++) {
       if (x > GRID_UPPER-1)
         x = GRID_UPPER-1;
       else if (x < 0)
@@ -291,42 +296,42 @@ static void Move(int direction) {
   bool valid;
   switch (direction) {
     case 1: //w, up
-      if (player["Y"] > player["sight"]) { //makes sure it wont exceed map bounds
-        valid = CollectItem(player["Y"]-1,player["X"]); //processes block stepped on
+      if (player["y"] > player["sight"]) { //makes sure it wont exceed map bounds
+        valid = CollectItem(player["y"]-1,player["x"]); //processes block stepped on
         if (valid) {
-          grid[player["Y"]-1][player["X"]] = PLAYER;
-          grid[player["Y"]][player["X"]] = MINED;
-          player["Y"]--;
+          grid[player["y"]-1][player["x"]] = PLAYER;
+          grid[player["y"]][player["x"]] = MINED;
+          player["y"]--;
         }
       }
       break;
     case 2: //a, left
-      if (player["X"] > player["sight"]) {
-        valid = CollectItem(player["Y"],player["X"]-1);
+      if (player["x"] > player["sight"]) {
+        valid = CollectItem(player["y"],player["x"]-1);
         if (valid) {
-          grid[player["Y"]][player["X"]-1] = PLAYER;
-          grid[player["Y"]][player["X"]] = MINED;
-          player["X"]--;
+          grid[player["y"]][player["x"]-1] = PLAYER;
+          grid[player["y"]][player["x"]] = MINED;
+          player["x"]--;
         }
       }
       break;
     case 3: //s, down
-      if (player["Y"] < GRID_UPPER-player["sight"]-1) {
-        valid = CollectItem(player["Y"]+1,player["X"]);
+      if (player["y"] < GRID_UPPER-player["sight"]-1) {
+        valid = CollectItem(player["y"]+1,player["x"]);
         if (valid) {
-          grid[player["Y"]+1][player["X"]] = PLAYER;
-          grid[player["Y"]][player["X"]] = MINED;
-          player["Y"]++;
+          grid[player["y"]+1][player["x"]] = PLAYER;
+          grid[player["y"]][player["x"]] = MINED;
+          player["y"]++;
         }
       }
       break;
     case 4: //d, right
-      if (player["X"] < GRID_UPPER-player["sight"]-1) {
-        valid = CollectItem(player["Y"],player["X"]+1);
+      if (player["x"] < GRID_UPPER-player["sight"]-1) {
+        valid = CollectItem(player["y"],player["x"]+1);
         if (valid) {
-          grid[player["Y"]][player["X"]+1] = PLAYER;
-          grid[player["Y"]][player["X"]] = MINED;
-          player["X"]++;
+          grid[player["y"]][player["x"]+1] = PLAYER;
+          grid[player["y"]][player["x"]] = MINED;
+          player["x"]++;
         }
       }
       break;
@@ -451,7 +456,7 @@ static void CallShop() {
 //initializes globals and calls GenMap
 static void Init() {
   //set globals
-  player["X"] = player["Y"] = GRID_UPPER/2;//player starting in middle of the map
+  player["x"] = player["y"] = GRID_UPPER/2;//player starting in middle of the map
   player["sight"] = 4; //sees 4 blocks in any direction
   player["damage"] = 10;
   player["ore"] = player["artifacts"] = player["dirt"] = player["coins"] = 0;
@@ -459,7 +464,7 @@ static void Init() {
   player["health"] = player["maxHP"] = 35;
 
   game = true;
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < UPGRADE_UPPER; i++) {
     upgrades[i] = 0;
   }
 
@@ -585,8 +590,8 @@ static void Trade() {
 /* UPGRADE LIST
 upgrades[0] = increases sword dmg
 upgrades[1] = increases sight
-upgrades[2] = increases mining depth
-upgrades[3] = increases mining width 
+upgrades[2] = increases mining depth //unimplemented
+upgrades[3] = increases mining width //unimplemented
 upgrades[4] = increases 'clarity', allowing for better sight on ore/artifacts
 */
 
@@ -626,7 +631,7 @@ static void GameReport() {
   int upg = 0;
   int score = -140; //accounts for initial values player starts with
 
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < UPGRADE_UPPER; i++) {
     if (upgrades[i] > 0) {
       score += upgrades[i]*100;
       upg += upgrades[i];
@@ -709,7 +714,7 @@ static void InitMiner(Rogue &miner) {
 
 //iterates through all miners to move them
 static void MoveMiners() {
-  for (long long unsigned int i = 0; i < MinerList.size(); i++) {
+  for (int i = 0; i < MINERS; i++) {
     if (MinerList[i].health != 0) {
       if (MinerList[i].moved) { //moves every other time
         MoveMiner(MinerList[i]);
@@ -850,7 +855,7 @@ static bool ProcessBlock(Rogue &miner, int y, int x) {
 
 //outputs the current grid to a file
 static void SaveGrid() {
-  static std::ofstream MyFile("grid.txt");
+  std::ofstream MyFile("grid.txt");
   for (int y = 0; y < GRID_UPPER; y++) {
     for (int x = 0; x < GRID_UPPER; x++) {
       MyFile << grid[y][x];
@@ -963,23 +968,30 @@ static void TitleScreen() {
   int upg = 0;
 
   std::cout << "\n\n\n\n\n\n\n\nThe Deep Below\n\nTitle Screen:\n";
-  std::cout << "1. Save Game\n";
-  std::cout << "2. Load Game\n";
-  std::cout << "3. Output Map\n";
-  std::cout << "4. View Stats\n";
-  std::cout << "5. Exit Game\n";
+  std::cout << "1. Resume Game\n";
+  std::cout << "2. Save Game\n";
+  std::cout << "3. Load Game\n";
+  std::cout << "4. Output Map\n";
+  std::cout << "5. View Stats\n";
+  std::cout << "6. Exit Game\n";
   std::cout << "What would you like to do? Enter the number.\n";
+
   InputClear();
   std::cin >> input;
+  input -= 1;
 
   switch (input) {
+    case '0':
+      break;
     case '1':
-      std::cout << "Not fully implemented\n";
-      MySleep(2);
+      std::cout << "Saving...\n";
+      MySleep(1);
+      SaveGame("save.txt");
       break;
     case '2':
-      std::cout << "Not fully implemented\n";
-      MySleep(2);
+      std::cout << "Loading...\n";
+      MySleep(1);
+      LoadGame("save.txt");
       break;
     case '3':
       std::cout << "Ouputting Map to grid.txt\n";
@@ -987,7 +999,7 @@ static void TitleScreen() {
       SaveGrid();
       break;
     case '4':
-      for (int i = 0; i < 10; i++) {
+      for (int i = 0; i < UPGRADE_UPPER; i++) {
         if (upgrades[i] > 0) {
           upg += upgrades[i];
         }
@@ -1017,5 +1029,199 @@ static void TitleScreen() {
 static void InputClear() {
   std::cin.clear();
   std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+}
+///////////////////////////////////////////////////////////////////////////////
+
+//saves the state of the current game to save.txt
+static bool SaveGame(std::string name) {
+  try {
+    std::ofstream MyFile(name);
+
+    //save grid
+    for (int y = 0; y < GRID_UPPER; y++) {
+      for (int x = 0; x < GRID_UPPER; x++) {
+        MyFile << grid[y][x];
+      }
+      MyFile << '\n';
+    }
+
+    //save player
+    MyFile << player["x"] << ',' << player["y"] << ',' << player["sight"] << ',';
+    MyFile << player["damage"] << ',' << player["ore"] << ',' << player["dirt"];
+    MyFile << ',' << player["artifacts"] << ',' << player["coins"] << ',';
+    MyFile << player["kills"] << ','<< player["health"] << ',' << player["maxHP"] << '\n';
+
+    //save upgrades
+    for (int i = 0; i < UPGRADE_UPPER; i++) {
+      MyFile << upgrades[i] << ',';
+    }
+    MyFile << '\n';
+
+    //save miners
+    for (int i = 0; i < MINERS; i++) {
+      MyFile << MinerList[i].damage << ',' << MinerList[i].coins << ',';
+      MyFile << MinerList[i].artifacts << ',' << MinerList[i].health << ',';
+      MyFile << MinerList[i].x << ',' << MinerList[i].y << ',';
+      MyFile << MinerList[i].direction << ',' << MinerList[i].moved << '\n';
+    }
+
+    MyFile.close();
+    std::cout << "Save Successful!";
+    MySleep(2);
+    return true;
+  }
+
+  catch (std::ofstream::failure e) {
+    std::cerr << "Error opening/writing/closing file\n";
+    MySleep(2);
+    return false;
+  }
+}
+///////////////////////////////////////////////////////////////////////////////
+
+//loads the state of save.txt into the current game
+static bool LoadGame(std::string name) {
+  InputClear();
+  try {
+    std::ifstream MyFile(name);
+    std::string line;
+    std::string item;
+    std::string delimiter = ",";
+    size_t position = 0;
+    char temp;
+    int num;
+
+    //load grid
+    for (int y = 0; y < GRID_UPPER; y++) {
+      for (int x = 0; x < GRID_UPPER; x++) {
+        temp = MyFile.get();
+        grid[y][x] = temp - '0';
+      }
+      temp = MyFile.get();
+    }
+
+    //load player
+    std::getline(MyFile, line);
+      
+    for (int j = 0; j < 11; j++) {
+      num = 0;
+      position = line.find(delimiter);
+      item = line.substr(0, position);
+
+      for (int i = 0; item[i] != '\0'; i++) {
+        num = num * 10 + item[i] - '0';
+      }
+
+      switch (j) {
+        case 0:
+          player["x"] = num;
+          break;
+        case 1:
+          player["y"] = num;
+          break;
+        case 2:
+          player["sight"] = num;
+          break;
+        case 3:
+          player["damage"] = num;
+          break;
+        case 4:
+          player["ore"] = num;
+          break;
+        case 5:
+          player["dirt"] = num;
+          break;
+        case 6:
+          player["artifacts"] = num;
+          break;
+        case 7:
+          player["coins"] = num;
+          break;
+        case 8:
+          player["kills"] = num;
+          break;
+        case 9:
+          player["health"] = num;
+          break;
+        case 10:
+          player["maxHP"] = num;
+          break;
+      }
+    line.erase(0, position + delimiter.length());
+      
+    }
+
+    //load upgrades
+    std::getline(MyFile, line);
+    for (int i = 0; i < UPGRADE_UPPER; i++) {
+      num = 0;
+      position = line.find(delimiter);
+      item = line.substr(0, position);
+      for (int z = 0; item[z] != '\0'; z++) {
+        num = num * 10 + item[z] - '0';
+      }
+      upgrades[i] = num;
+      line.erase(0, position + delimiter.length());
+    }
+
+
+    //load miners
+    for (int i = 0; i < MINERS; i++) {
+      std::getline(MyFile, line);
+
+      for (int j = 0; j < 8; j++) {
+        num = 0;
+        position = line.find(delimiter);
+        item = line.substr(0, position);
+
+        for (int z = 0; item[z] != '\0'; z++) {
+          num = num * 10 + item[z] - '0';
+        }
+
+        switch (j) {
+          case 0:
+            MinerList[i].damage = num;
+            break;
+          case 1:
+            MinerList[i].coins = num;
+            break;
+          case 2:
+            MinerList[i].artifacts = num;
+            break;
+          case 3:
+            MinerList[i].health = num;
+            break;
+          case 4:
+            MinerList[i].x = num;
+            break;
+          case 5:
+            MinerList[i].y = num;
+            break;
+          case 6:
+            MinerList[i].direction = num;
+            break;
+          case 7:
+            MinerList[i].moved = num;
+            break;
+        }
+
+        line.erase(0, position + delimiter.length());
+      }
+    }
+
+    //load game
+    game = true;
+    
+    MyFile.close();
+    std::cout << "Load Successful!";
+    MySleep(2);
+    return true;
+  }
+  
+  catch (std::ifstream::failure e) {
+    std::cerr << "Error opening/reading/closing file\n";
+    MySleep(2);
+    return false;
+  }
 }
 ///////////////////////////////////////////////////////////////////////////////
