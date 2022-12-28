@@ -6,10 +6,10 @@ I have a passion for creating games and right now this is one of my main side pr
 
 This game is a mining game with many planned cool features. 
 Currently users can use WASD to move around the map of #'s to find objects that sometimes sparkle *.
-There is a shop system to trade for ore, artifacts, coins, and upgrades! 
+There is a shop system to trade for ore, artifacts, coins, and upgrades.
 There are also enemy miners in the game that move and can attack if provoked! 
-Watch out for minibosses and a final boss also coming! 
-Lastly, there is no save system currently so just push enter q in the main screen and the program will give you a final score.
+Watch out for minibosses and a final boss also coming soon.
+Enter t to get to the title screen to save or load.
 
 
 HOW TO RUN

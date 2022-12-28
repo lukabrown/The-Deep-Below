@@ -83,7 +83,6 @@ static void TitleScreen();
 //map/grid functions
 static void GenerateGrid();
 static void PrintGrid();
-static void SaveGrid();
 //shop functions
 static void CallShop();
 static void SellOre();
@@ -146,7 +145,6 @@ int main() {
         Move(action);
         break;
       case 5:
-        SaveGrid();
         break;
       case 6:
         TitleScreen();
@@ -157,7 +155,6 @@ int main() {
     PrintGrid();
   }// end game while
   
-  SaveGrid();
   GameReport();
   return 0;
 }
@@ -278,8 +275,8 @@ static int GameLoop() {
     case 'd':
     case 'D':
       return 4;
-    case 'O':
-    case 'o':
+    case 'h':
+    case 'H':
       return 5;
     case 't':
     case 'T':
@@ -355,8 +352,6 @@ static bool CollectItem(int y, int x) {
       player["ore"]++;
       MySleep(1.3);
     }
-      
-    //98% chance dirt
     player["dirt"]++;
   } 
 
@@ -681,11 +676,13 @@ static void Intro() {
   std::cin >> x;
 
   std::cout << "\n\nControls: \n   Enter WASD to move\n";
-  MySleep(2);
+  MySleep(1);
   std::cout << "   Enter T to go to the title screen\n";
-  MySleep(2);
+  MySleep(1);
   std::cout << "   Enter Q to quit and get a final score\n";
-  MySleep(2);
+  MySleep(1);
+  std::cout << "   Enter H to hold your ground\n";
+  MySleep(1);
   std::cout << "\nGood Luck Mining!";
   MySleep(2);
 
@@ -831,9 +828,9 @@ static bool ProcessBlock(Rogue &miner, int y, int x) {
       std::cout << "They don't seem to notice you and continue swinging their pickaxe";
       std::cout << " even though you are in their way.\n";
       MySleep(1);
-      std::cout << "You take " << miner.damage << " damage from the miner.\n\n";
+      std::cout << "You brace and take " << miner.damage/2 << " damage from the miner.\n\n";
       MySleep(3);
-      player["health"] -= miner.damage;
+      player["health"] -= miner.damage/2;
 
       //player death
       if (player["health"] <= 0) {
@@ -851,20 +848,7 @@ static bool ProcessBlock(Rogue &miner, int y, int x) {
   }
   return true;
 }
-///////////////////////////////////////////////////////////////////////////////
-
-//outputs the current grid to a file
-static void SaveGrid() {
-  std::ofstream MyFile("grid.txt");
-  for (int y = 0; y < GRID_UPPER; y++) {
-    for (int x = 0; x < GRID_UPPER; x++) {
-      MyFile << grid[y][x];
-    }
-    MyFile << '\n';
-  }
-  MyFile.close();
-}
-///////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 
 //processes player fighting with enemy miner
 //parameters: YX co-ord. of the miner to be faught
@@ -971,9 +955,9 @@ static void TitleScreen() {
   std::cout << "1. Resume Game\n";
   std::cout << "2. Save Game\n";
   std::cout << "3. Load Game\n";
-  std::cout << "4. Output Map\n";
-  std::cout << "5. View Stats\n";
-  std::cout << "6. Exit Game\n";
+  std::cout << "4. View Stats\n";
+  std::cout << "5. Exit Game\n";
+  std::cout << "6. View Credits\n";
   std::cout << "What would you like to do? Enter the number.\n";
 
   InputClear();
@@ -981,30 +965,27 @@ static void TitleScreen() {
   input -= 1;
 
   switch (input) {
-    case '0':
+    case '0': //resume game
       break;
-    case '1':
+    case '1': //save game
       std::cout << "Saving...\n";
       MySleep(1);
       SaveGame("save.txt");
       break;
-    case '2':
-      std::cout << "Loading...\n";
-      MySleep(1);
+    case '2': //load game
+      std::cout << "After loading, press any key to begin.\n";
+      MySleep(2);
       LoadGame("save.txt");
       break;
-    case '3':
-      std::cout << "Ouputting Map to grid.txt\n";
-      MySleep(2);
-      SaveGrid();
-      break;
-    case '4':
+    case '3': //view stats
+      //print upgrades
       for (int i = 0; i < UPGRADE_UPPER; i++) {
         if (upgrades[i] > 0) {
           upg += upgrades[i];
         }
       }
 
+      //print stats
       std::cout << "Dirt:             " << player["dirt"] << '\n';
       MySleep(1);
       std::cout << "Ore:              " << player["ore"] << '\n';
@@ -1018,8 +999,17 @@ static void TitleScreen() {
       std::cout << "Miners slayed:    " << player["kills"] << "\n\n";
       MySleep(1);
       break;
-    case '5':
+    case '4': //exit game
       game = false;
+      break;
+    case '5': //view credits
+      std::cout << "Well my, my, my, thank you for asking!\n";
+      MySleep(1);
+      std::cout << "This was developed solely by Luka Brown!\n";
+      MySleep(2);
+      std::cout << "They are a software developer currently based in Texas and";
+      std::cout << " working on finishing a Computer Science degree in '23!\n";
+      MySleep(4);
       break;
   }
 }
