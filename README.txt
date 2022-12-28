@@ -11,6 +11,8 @@ There are also enemy miners in the game that move and can attack if provoked!
 Watch out for minibosses and a final boss also coming soon.
 Enter t to get to the title screen to save or load.
 
+Youtube Demo:
+https://www.youtube.com/watch?v=HClAM_4iSA8
 
 HOW TO RUN
 
