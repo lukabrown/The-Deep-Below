@@ -79,7 +79,7 @@ static int  GameLoop();
 static void Move(int x);
 static bool CollectItem(int y, int x);
 static void GameReport();
-static void TitleScreen();
+static bool TitleScreen();
 //map/grid functions
 static void GenerateGrid();
 static void PrintGrid();
@@ -122,6 +122,7 @@ int main() {
   Intro(); //prints opening statement
 
   int action;
+  bool update;
 
   //creates vector of all the enemy miners
   for (int i = 0; i < MINERS; i++) {
@@ -135,24 +136,33 @@ int main() {
     action = GameLoop();
 
     switch (action) {
-      case 0:
-        game = false;
+      case -1:
+        std::cout << "Invalid Input\n";
+        MySleep(1);
+        update = false;
         break;
+      case 0:
       case 1:
       case 2:
       case 3:
-      case 4:
         Move(action);
+        update = true;
+        break;
+      case 4: //hold your ground
+        update = true;
         break;
       case 5:
-        break;
-      case 6:
-        TitleScreen();
+        update = TitleScreen();
         break;
     } //end switch
-    
-    MoveMiners();
+
+    if (update)
+      MoveMiners();
+
     PrintGrid();
+
+    if (player["health"] <= 0)
+      game = false;
   }// end game while
   
   GameReport();
@@ -259,28 +269,24 @@ static int GameLoop() {
   input = getchar();
 
   switch (input) {
-    case 'q':
-    case '0':
-    case 'Q':
-      return 0;
     case 'w':
     case 'W':
-      return 1;
+      return 0;
     case 'a':
     case 'A':
-      return 2;
+      return 1;
     case 's':
     case 'S':
-      return 3;
+      return 2;
     case 'd':
     case 'D':
-      return 4;
+      return 3;
     case 'h':
     case 'H':
-      return 5;
+      return 4;
     case 't':
     case 'T':
-      return 6;
+      return 5;
     default:
       return -1;
   } //end switch
@@ -292,7 +298,7 @@ static int GameLoop() {
 static void Move(int direction) {
   bool valid;
   switch (direction) {
-    case 1: //w, up
+    case 0: //w, up
       if (player["y"] > player["sight"]) { //makes sure it wont exceed map bounds
         valid = CollectItem(player["y"]-1,player["x"]); //processes block stepped on
         if (valid) {
@@ -302,7 +308,7 @@ static void Move(int direction) {
         }
       }
       break;
-    case 2: //a, left
+    case 1: //a, left
       if (player["x"] > player["sight"]) {
         valid = CollectItem(player["y"],player["x"]-1);
         if (valid) {
@@ -312,7 +318,7 @@ static void Move(int direction) {
         }
       }
       break;
-    case 3: //s, down
+    case 2: //s, down
       if (player["y"] < GRID_UPPER-player["sight"]-1) {
         valid = CollectItem(player["y"]+1,player["x"]);
         if (valid) {
@@ -322,7 +328,7 @@ static void Move(int direction) {
         }
       }
       break;
-    case 4: //d, right
+    case 3: //d, right
       if (player["x"] < GRID_UPPER-player["sight"]-1) {
         valid = CollectItem(player["y"],player["x"]+1);
         if (valid) {
@@ -677,11 +683,9 @@ static void Intro() {
 
   std::cout << "\n\nControls: \n   Enter WASD to move\n";
   MySleep(1);
-  std::cout << "   Enter T to go to the title screen\n";
-  MySleep(1);
-  std::cout << "   Enter Q to quit and get a final score\n";
-  MySleep(1);
   std::cout << "   Enter H to hold your ground\n";
+  MySleep(1);
+  std::cout << "   Enter T to go to the title screen\n";
   MySleep(1);
   std::cout << "\nGood Luck Mining!";
   MySleep(2);
@@ -947,7 +951,7 @@ static void MySleep(double seconds) {
 ///////////////////////////////////////////////////////////////////////////////
 
 //allows the player to explore options outside of the game
-static void TitleScreen() {
+static bool TitleScreen() {
   char input;
   int upg = 0;
 
@@ -966,17 +970,17 @@ static void TitleScreen() {
 
   switch (input) {
     case '0': //resume game
-      break;
+      return true;
     case '1': //save game
       std::cout << "Saving...\n";
       MySleep(1);
       SaveGame("save.txt");
-      break;
+      return false;
     case '2': //load game
       std::cout << "After loading, press any key to begin.\n";
       MySleep(2);
       LoadGame("save.txt");
-      break;
+      return false;
     case '3': //view stats
       //print upgrades
       for (int i = 0; i < UPGRADE_UPPER; i++) {
@@ -998,10 +1002,10 @@ static void TitleScreen() {
       MySleep(1);
       std::cout << "Miners slayed:    " << player["kills"] << "\n\n";
       MySleep(1);
-      break;
+      return false;
     case '4': //exit game
       game = false;
-      break;
+      return false;
     case '5': //view credits
       std::cout << "Well my, my, my, thank you for asking!\n";
       MySleep(1);
@@ -1010,7 +1014,11 @@ static void TitleScreen() {
       std::cout << "They are a software developer currently based in Texas and";
       std::cout << " working on finishing a Computer Science degree in '23!\n";
       MySleep(4);
-      break;
+      return false;
+    default:
+      std::cout << "Invalid Input\n";
+      MySleep(1);
+      return false;
   }
 }
 ///////////////////////////////////////////////////////////////////////////////
@@ -1061,7 +1069,7 @@ static bool SaveGame(std::string name) {
     return true;
   }
 
-  catch (std::ofstream::failure e) {
+  catch (std::ofstream::failure const &e) {
     std::cerr << "Error opening/writing/closing file\n";
     MySleep(2);
     return false;
@@ -1138,7 +1146,6 @@ static bool LoadGame(std::string name) {
           break;
       }
     line.erase(0, position + delimiter.length());
-      
     }
 
     //load upgrades
@@ -1208,7 +1215,7 @@ static bool LoadGame(std::string name) {
     return true;
   }
   
-  catch (std::ifstream::failure e) {
+  catch (std::ifstream::failure const &e) {
     std::cerr << "Error opening/reading/closing file\n";
     MySleep(2);
     return false;
