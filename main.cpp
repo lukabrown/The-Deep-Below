@@ -11,38 +11,38 @@ Explore an (almost) endless mass of blocks and dig your way around!
 The game starts with a grid output to a console with 'P' for player in the
 middle. 
 
-Controls:
-  Use WASD to move.
-  Press q to exit game.
-  Press o to output to grid.txt (prints map, ints based on block types)
-
 Go towards * if you see them, they're rare and sparkly
 $ is a friendly shop!
 + is an enemy miner, beware!
 Have fun!
 
 Implemented features:
-  Output grid to file
+  Main Menu
+    Saving and Loading from a file
+
   Rogue Enemy Miners to fight
+  Minibosses to fight
+  Boss to fight
+
+  End Score System
+
   Shop system
     can sell ore
     can buy artifacts
     can trade artifacts for upgrades
-  Upgrades (3/5)
-    Extra damage
-    Extra sight
-    clarity (sees all special blocks more often)
-  End Score System  
-  Main Menu
-  Saving and Loading from a file
 
-Agenda, in particular order:
-  Encrypted files
-  Upgrades (2/5)
+  Upgrades (4/7)
+    Extra damage
+    Extra health
+    Sight (sees more of map at once)
+    Clarity (sees all special blocks more often)
+
+Agenda:
+  Encrypted save files (?)
+  Upgrades (3/7)
     mining width
     mining depth
-  Minibosses to fight
-  Boss to fight
+    icon to guide player towards a secret of the mines
 */
 
 #include <vector>
@@ -75,11 +75,13 @@ static void MySleep(double seconds);
 static bool SaveGame(std::string name);
 static bool LoadGame(std::string name);
 //game functions
-static int  GameLoop();
+static int  GameInput();
 static void Move(int x);
 static bool CollectItem(int y, int x);
 static void GameReport();
 static bool TitleScreen();
+static bool Miniboss();
+static bool Boss();
 //map/grid functions
 static void GenerateGrid();
 static void PrintGrid();
@@ -90,16 +92,17 @@ static void BuyArtifacts();
 static void Trade();
 static void Upgrade(int x);
 //enemy miner functions
-static void InitMiner(Rogue &miner);
+static void InitMiner(Rogue &miner, int y, int x);
 static void MoveMiners();
 static void MoveMiner(Rogue &miner);
 static bool ProcessBlock(Rogue &miner, int y, int x);
 static bool MinerFight(int y, int x);
 
+
 //Constants
 static const int GRID_UPPER = 2000; //2000x2000 grid, 4 million blocks
-static const int MINERS = 2000; //num of enemy miners in the map
-static const int UPGRADE_UPPER = 5; //num of upgrades implemented
+static const int MINERS = GRID_UPPER + GRID_UPPER / 2; //scales with grid size
+static const int UPGRADE_UPPER = 7; //num of upgrades implemented
 
 //"block" types
 #define PLAYER   0
@@ -109,6 +112,8 @@ static const int UPGRADE_UPPER = 5; //num of upgrades implemented
 #define ARTIFACT 4
 #define ORE      5
 #define MINER    6 //enemy
+#define MINIBOSS 7
+#define BOSS     8
 
 //global vars
 static bool game; //game on/off
@@ -124,16 +129,9 @@ int main() {
   int action;
   bool update;
 
-  //creates vector of all the enemy miners
-  for (int i = 0; i < MINERS; i++) {
-    Rogue miner;
-    InitMiner(miner);
-    MinerList.push_back(miner);
-  }
-
   while(game) {
     MySleep(.2);
-    action = GameLoop();
+    action = GameInput();
 
     switch (action) {
       case -1:
@@ -172,10 +170,11 @@ int main() {
 
 //creates 2d vector of blocks
 static void GenerateGrid() {
-  int y, x;
-  int random;
+  int y, x, random;
+  int inside = 0;
   srand((unsigned int)time(NULL)); //seeds random
 
+  //initializes map with basic blocks
   for (y = 0; y < GRID_UPPER; y++) {
     for (x = 0; x < GRID_UPPER; x++) {
       random = rand() % 100;
@@ -203,6 +202,79 @@ static void GenerateGrid() {
       } //end switch
     } //end for x
   } //end for y
+  
+  //generate minibosses in the inner chunk of the map
+  for (int i = 0; i < GRID_UPPER/6; i++) {
+    y = rand() % GRID_UPPER - GRID_UPPER / 4;
+    x = rand() % GRID_UPPER - GRID_UPPER / 4;
+
+    while (y <= GRID_UPPER / 4)
+      y = rand() % GRID_UPPER - GRID_UPPER / 4;
+
+    while (x <= GRID_UPPER / 4)
+      x = rand() % GRID_UPPER - GRID_UPPER / 4;
+
+    grid[y][x] = MINIBOSS;
+  }
+
+  //generate minibosses in the middle chunk of the map
+  for (int i = 0; i < GRID_UPPER/6; i++) {
+    y = rand() % GRID_UPPER - GRID_UPPER / 8;
+    x = rand() % GRID_UPPER - GRID_UPPER / 8;
+
+    while (!((y >= GRID_UPPER / 8 && y <= GRID_UPPER / 4) || y >= GRID_UPPER - GRID_UPPER / 4))
+      y = rand() % GRID_UPPER - GRID_UPPER / 8;
+
+    while (!((x >= GRID_UPPER / 8 && x <= GRID_UPPER / 4) || x >= GRID_UPPER - GRID_UPPER / 4))
+      x = rand() % GRID_UPPER - GRID_UPPER / 8;
+
+    grid[y][x] = MINIBOSS;
+  }
+
+  //generate minibosses in the outer chunk of the map
+  for (int i = 0; i < GRID_UPPER/6; i++) {
+    y = rand() % GRID_UPPER;
+    x = rand() % GRID_UPPER;
+
+    while (y <= GRID_UPPER / 4)
+      y = rand() % GRID_UPPER - GRID_UPPER / 2;
+
+    while (x <= GRID_UPPER / 4)
+      x = rand() % GRID_UPPER - GRID_UPPER / 2;
+
+    grid[y][x] = MINIBOSS;
+  }
+
+  //generates miners
+  for (int i = 0; i < MINERS; i++) {
+    Rogue miner;
+    y = rand() % GRID_UPPER;
+    x = rand() % GRID_UPPER;
+
+    if ((y >= GRID_UPPER/4 && y <= GRID_UPPER - GRID_UPPER/4) && (x >= GRID_UPPER/4 && x <= GRID_UPPER - GRID_UPPER/4))
+      inside++;
+
+    if (inside < GRID_UPPER / 7) {
+      while (!((y >= GRID_UPPER/4 && y <= GRID_UPPER - GRID_UPPER/4) && (x >= GRID_UPPER/4 && x <= GRID_UPPER - GRID_UPPER/4))) {
+        y = rand() % GRID_UPPER;
+        x = rand() % GRID_UPPER;
+      }
+    }
+
+    InitMiner(miner, y, x);
+    MinerList.push_back(miner);
+  }
+
+  //spawns boss
+  y = rand() % GRID_UPPER;
+  x = rand() % GRID_UPPER;
+  while ((x < GRID_UPPER/2 + GRID_UPPER/8 && x > GRID_UPPER/2 - GRID_UPPER/8) ||
+         (y < GRID_UPPER/2 + GRID_UPPER/8 && y > GRID_UPPER/2 - GRID_UPPER/8)) {
+    y = rand() % GRID_UPPER;
+    x = rand() % GRID_UPPER;
+  }
+  grid[y][x] = BOSS;
+  
   grid[player["y"]][player["x"]] = PLAYER; //sets player position
   return;
 }
@@ -232,7 +304,7 @@ static void PrintGrid() {
           std::cout << "P ";
           break;
         case DIRT:
-          std::cout << "# "; //□_
+          std::cout << "# "; 
           break;
         case MINED:
           std::cout << "  ";
@@ -251,6 +323,12 @@ static void PrintGrid() {
         case MINER:
           std::cout << "+ ";
           break;
+        case MINIBOSS:
+          std::cout << "\" ";
+          break;
+        case BOSS:
+          std::cout << "- ";
+          break;
       } //end switch
     } //end for x
     std::cout << '\n';
@@ -263,7 +341,7 @@ static void PrintGrid() {
 ///////////////////////////////////////////////////////////////////////////////
 
 //catches player movement and sends back
-static int GameLoop() {
+static int GameInput() {
   char input;
   InputClear();
   input = getchar();
@@ -380,6 +458,15 @@ static bool CollectItem(int y, int x) {
   else if (grid[y][x] == MINER) {
     return MinerFight(y,x); //valid only if miner dies
   }
+
+  else if (grid[y][x] == MINIBOSS) {
+    return Miniboss();
+  }
+
+  else if (grid[y][x] == BOSS) {
+    return Boss();
+  }
+
   return true;
 }
 ///////////////////////////////////////////////////////////////////////////////
@@ -527,7 +614,6 @@ static void BuyArtifacts() {
 //shop helper if you want to trade for an upgrade
 static void Trade() {
   char input;
-  int implementedUpgrades = 5; //# of finished upgrades. max 10
 
   //cost ranges from 15-35
   //nums 16-29 have a higher probability
@@ -538,7 +624,7 @@ static void Trade() {
   std::cout << "If you have " << cost << " ancient artifacts then I may consider selling...\n";
   std::cout << "The only item that would help you is a magnificent Upgrade!\n\n";
 
-  int random = rand() % implementedUpgrades; //0-3, picks what upgrade the shop has
+  int random = rand() % UPGRADE_UPPER; //picks what upgrade the shop has
 
   if (upgrades[random] >= 3) { //3 is the max level an upgrade can achieve
     std::cout << "Oh... It looks like you already have the upgrade I was going to offer.\n";
@@ -548,10 +634,10 @@ static void Trade() {
   else {
     switch(random) {
       case 0:
-        std::cout << "This enhancement will augment your weapon to be far superior.\n";
+        std::cout << "This book enchants the sword of the user for extra damage.\n";
         break;
       case 1:
-        std::cout << "This enhancement will give you extra sight in the mines.\n";
+        std::cout << "This ring gives your eyes the ability to see much farther.\n";
         break;
       case 2:
         std::cout << "This enhancement will allow you to swing wider.\n";
@@ -562,7 +648,15 @@ static void Trade() {
         cost += 10; //upgrade costs more due to power
         break;
       case 4:
-        std::cout << "This enhancement will allow you to see more ore.\n";
+        std::cout << "Ever see some glints of ore in the mines? Carrying around ";
+        std::cout << "this trinket will guide your eyes to the valuables.\n";
+        break;
+      case 5:
+        std::cout << "This potion will make you much hardier. Trust me, looks like you need it.\n";
+        break;
+      case 6:
+        std::cout << "This floating rock leads to a deep, dark, secret. I do not know where it\n";
+        std::cout << "goes nor do I wish to. This is a cursed object... Beware.\n";
         break;
     } //end switch
 
@@ -594,6 +688,8 @@ upgrades[1] = increases sight
 upgrades[2] = increases mining depth //unimplemented
 upgrades[3] = increases mining width //unimplemented
 upgrades[4] = increases 'clarity', allowing for better sight on ore/artifacts
+upgrades[5] = increases health
+upgrades[6] = leads player to final boss
 */
 
 //processes which upgrade to give player
@@ -621,6 +717,16 @@ static void Upgrade(int x) {
       break;
     case 4:
       upgrades[4]++;
+      break;
+    case 5:
+      upgrades[5]++;
+      player["health"] += 15;
+      player["maxHP"] += 15;
+      break;
+    case 6:
+      upgrades[6] += 3;
+      std::cout << ("\nUpgrade not fully implemented.\n");
+      MySleep(2);
       break;
   } //end switch
 }
@@ -696,14 +802,14 @@ static void Intro() {
 
 //creates initial values for the enemy miners
 //parameters: miner to be initalized
-static void InitMiner(Rogue &miner) {
+static void InitMiner(Rogue &miner, int y, int x) {
   miner.artifacts = 0;
   miner.coins = 25;
   miner.damage = 8;
   miner.ore = 0;
   miner.health = 30;
-  miner.x = rand() % 2000;
-  miner.y = rand() % 2000;
+  miner.y = y;
+  miner.x = x;
   miner.direction = rand() % 4;
   if (miner.x % 2 == 0)
     miner.moved = false;
@@ -809,6 +915,7 @@ static bool ProcessBlock(Rogue &miner, int y, int x) {
     case ORE: //adds ore to sell at shops
       miner.ore++;
       break;
+
     case SHOP: //makes miner more valuable to fight over time
       //sells all ore and adds to miner coins
       for (int z = 0; z < miner.ore; z++) {
@@ -823,9 +930,11 @@ static bool ProcessBlock(Rogue &miner, int y, int x) {
       //changes miner direction so they leave the shop and dont idle
       miner.direction = rand() % 4;
       return false;
+
     case ARTIFACT: //adds artifacts to upgrade dmg at shops
       miner.artifacts++;
       break;
+
     case PLAYER: //damages player if theyre in the way
       std::cout << "You spot a miner coming toward you and see a haze in their eyes.\n";
       MySleep(1);
@@ -845,10 +954,11 @@ static bool ProcessBlock(Rogue &miner, int y, int x) {
         MySleep(3);
       }
       return false;
-    case MINER: //doesn't allow miner overlap
+
+    case MINER: //doesn't allow overlap
+    case MINIBOSS:
+    case BOSS:
       return false;
-    default:
-      break;
   }
   return true;
 }
@@ -1064,7 +1174,7 @@ static bool SaveGame(std::string name) {
     }
 
     MyFile.close();
-    std::cout << "Save Successful!";
+    std::cout << "Save Successful!\n";
     MySleep(2);
     return true;
   }
@@ -1210,7 +1320,7 @@ static bool LoadGame(std::string name) {
     game = true;
     
     MyFile.close();
-    std::cout << "Load Successful!";
+    std::cout << "Load Successful!\n";
     MySleep(2);
     return true;
   }
@@ -1220,5 +1330,25 @@ static bool LoadGame(std::string name) {
     MySleep(2);
     return false;
   }
+}
+///////////////////////////////////////////////////////////////////////////////
+
+//engages miniboss fight
+static bool Miniboss() {
+  int health = 65 + upgrades[5] * 5;
+  int damage = 15 + upgrades[0] * 5;
+  std::cout << "Not fully implemented.\n";
+  MySleep(3);
+  return true;
+}
+///////////////////////////////////////////////////////////////////////////////
+
+//engages boss fight
+static bool Boss() {
+  int health = 100 + upgrades[5] * 10;
+  int damage = 25 + upgrades[0] * 10;
+  std::cout << "Not fully implemented.\n";
+  MySleep(3);
+  return true;
 }
 ///////////////////////////////////////////////////////////////////////////////

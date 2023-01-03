@@ -8,7 +8,7 @@ This game is a mining game with many planned cool features.
 Currently users can use WASD to move around the map of #'s to find objects that sometimes sparkle *.
 There is a shop system to trade for ore, artifacts, coins, and upgrades.
 There are also enemy miners in the game that move and can attack if provoked! 
-Watch out for minibosses and a final boss also coming soon.
+Watch out for minibosses and a final boss too!
 Enter t to get to the title screen to save or load.
 
 Youtube Demo:
