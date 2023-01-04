@@ -17,32 +17,32 @@ $ is a friendly shop!
 Have fun!
 
 Implemented features:
-  Main Menu
-    Saving and Loading from a file
+  - Main Menu
+      Saving and Loading from a file
 
-  Rogue Enemy Miners to fight
-  Minibosses to fight
-  Boss to fight
+  - Rogue Enemy Miners to fight
+  - Minibosses to fight
+  - Boss to fight
 
-  End Score System
+  - Ending Score System
 
-  Shop system
-    can sell ore
-    can buy artifacts
-    can trade artifacts for upgrades
+  - Shop system
+      can sell ore
+      can buy artifacts
+      can trade artifacts for upgrades
 
-  Upgrades (4/7)
-    Extra damage
-    Extra health
-    Sight (sees more of map at once)
-    Clarity (sees all special blocks more often)
+  - Upgrades (5/7)
+      Extra damage
+      Extra health
+      Sight (sees more of map at once)
+      Clarity (sees all special blocks more often)
+      Compass to guide player towards a secret of the mines
 
 Agenda:
-  Encrypted save files (?)
-  Upgrades (3/7)
-    mining width
-    mining depth
-    icon to guide player towards a secret of the mines
+  - Upgrades (2/7)
+      Mining width
+      Mining depth
+  - Encrypted save files (?)
 */
 
 #include <vector>
@@ -60,11 +60,13 @@ Agenda:
 #include <unistd.h>
 #endif
 
+
 //enemy AI class
 struct Rogue {
   int damage, coins, ore, artifacts, health, x, y, direction;
   bool moved;
 };
+
 
 //function prototypes
 //intro/helper functions
@@ -72,8 +74,7 @@ static void Init();
 static void Intro();
 static void InputClear();
 static void MySleep(double seconds);
-static bool SaveGame(std::string name);
-static bool LoadGame(std::string name);
+
 //game functions
 static int  GameInput();
 static void Move(int x);
@@ -82,16 +83,22 @@ static void GameReport();
 static bool TitleScreen();
 static bool Miniboss();
 static bool Boss();
+static void Revive();
+
 //map/grid functions
 static void GenerateGrid();
 static void PrintGrid();
+static bool SaveGame(std::string name);
+static bool LoadGame(std::string name);
+
 //shop functions
 static void CallShop();
 static void SellOre();
 static void BuyArtifacts();
 static void Trade();
 static void Upgrade(int x);
-//enemy miner functions
+
+//miner functions
 static void InitMiner(Rogue &miner, int y, int x);
 static void MoveMiners();
 static void MoveMiner(Rogue &miner);
@@ -122,6 +129,7 @@ static std::map<std::string, int> player; //dictionary of player items, defined 
 static std::vector<std::vector<int>> grid(GRID_UPPER, std::vector<int> (GRID_UPPER)); //map
 static std::vector<Rogue> MinerList; //list of all enemy miners
 
+
 int main() {
   Init(); //creates map and prints
   Intro(); //prints opening statement
@@ -136,7 +144,7 @@ int main() {
     switch (action) {
       case -1:
         std::cout << "Invalid Input\n";
-        MySleep(1);
+        MySleep(2);
         update = false;
         break;
       case 0:
@@ -157,10 +165,13 @@ int main() {
     if (update)
       MoveMiners();
 
-    PrintGrid();
-
     if (player["health"] <= 0)
       game = false;
+    
+    if (player["died"] == 1)
+      Revive();
+
+    PrintGrid();
   }// end game while
   
   GameReport();
@@ -208,10 +219,10 @@ static void GenerateGrid() {
     y = rand() % GRID_UPPER - GRID_UPPER / 4;
     x = rand() % GRID_UPPER - GRID_UPPER / 4;
 
-    while (y <= GRID_UPPER / 4)
+    while (y <= GRID_UPPER / 4 || (y < GRID_UPPER/2 + GRID_UPPER/100 && y > GRID_UPPER/2 - GRID_UPPER/100))
       y = rand() % GRID_UPPER - GRID_UPPER / 4;
 
-    while (x <= GRID_UPPER / 4)
+    while (x <= GRID_UPPER / 4 || (x < GRID_UPPER/2 + GRID_UPPER/100 && x > GRID_UPPER/2 - GRID_UPPER/100))
       x = rand() % GRID_UPPER - GRID_UPPER / 4;
 
     grid[y][x] = MINIBOSS;
@@ -251,11 +262,13 @@ static void GenerateGrid() {
     y = rand() % GRID_UPPER;
     x = rand() % GRID_UPPER;
 
-    if ((y >= GRID_UPPER/4 && y <= GRID_UPPER - GRID_UPPER/4) && (x >= GRID_UPPER/4 && x <= GRID_UPPER - GRID_UPPER/4))
+    if ((y >= GRID_UPPER/4 && y <= GRID_UPPER - GRID_UPPER/4) && 
+        (x >= GRID_UPPER/4 && x <= GRID_UPPER - GRID_UPPER/4))
       inside++;
 
     if (inside < GRID_UPPER / 7) {
-      while (!((y >= GRID_UPPER/4 && y <= GRID_UPPER - GRID_UPPER/4) && (x >= GRID_UPPER/4 && x <= GRID_UPPER - GRID_UPPER/4))) {
+      while (!((y >= GRID_UPPER/4 && y <= GRID_UPPER - GRID_UPPER/4) && 
+               (x >= GRID_UPPER/4 && x <= GRID_UPPER - GRID_UPPER/4))) {
         y = rand() % GRID_UPPER;
         x = rand() % GRID_UPPER;
       }
@@ -274,6 +287,8 @@ static void GenerateGrid() {
     x = rand() % GRID_UPPER;
   }
   grid[y][x] = BOSS;
+  player["bossY"] = y;
+  player["bossX"] = x;
   
   grid[player["y"]][player["x"]] = PLAYER; //sets player position
   return;
@@ -283,17 +298,18 @@ static void GenerateGrid() {
 //prints blocks around the player
 static void PrintGrid() {
   std::cout << "\n\n\n\n\n\n";
-  int y, x, chance;
+  int y, x, chance, sight;
+  sight = upgrades[2] + 4;
 
   grid[player["y"]][player["x"]] = PLAYER;
 
-  for (y = player["y"]-player["sight"]; y < player["y"]+player["sight"]+1; y++) {
+  for (y = player["y"] - sight; y < player["y"] + sight + 1; y++) {
     if (y > GRID_UPPER-1)
       y = GRID_UPPER-1;
     else if (y < 0)
       y = 0;
 
-    for (x = player["x"]-player["sight"]; x < player["x"]+player["sight"]+1; x++) {
+    for (x = player["x"] - sight; x < player["x"] + sight + 1; x++) {
       if (x > GRID_UPPER-1)
         x = GRID_UPPER-1;
       else if (x < 0)
@@ -303,12 +319,31 @@ static void PrintGrid() {
         case PLAYER:
           std::cout << "P ";
           break;
+        
+        case MINER:
+          std::cout << "+ ";
+          break;
+
         case DIRT:
           std::cout << "# "; 
           break;
+
         case MINED:
           std::cout << "  ";
           break;
+
+        case SHOP:
+          std::cout << "$ ";
+          break;
+
+        case MINIBOSS:
+          std::cout << "\" ";
+          break;
+
+        case BOSS:
+          std::cout << "- ";
+          break;
+
         case ARTIFACT: //ore and artifact have chance of not showing up
         case ORE:
           chance = rand() % (8 - (upgrades[4]*2)); //chance goes from 1/8 to 1/6 
@@ -317,18 +352,6 @@ static void PrintGrid() {
           else
             std::cout << "# ";
           break;
-        case SHOP:
-          std::cout << "$ ";
-          break;
-        case MINER:
-          std::cout << "+ ";
-          break;
-        case MINIBOSS:
-          std::cout << "\" ";
-          break;
-        case BOSS:
-          std::cout << "- ";
-          break;
       } //end switch
     } //end for x
     std::cout << '\n';
@@ -336,7 +359,56 @@ static void PrintGrid() {
 
   std::cout << "Ore: " << player["ore"] << " Artifacts: " << player["artifacts"];
   std::cout << " Coins: " << player["coins"] << " HP: " << player["health"] << '\n';
-  return;
+
+  if (upgrades[6] == 3) {
+    bool left, right, down, up;
+    left = right = down = up = false;
+    std::string direction;
+    
+    if (player["x"] > player["bossX"])
+      left = true;
+    else if (player["x"] < player["bossX"])
+      right = true;
+
+    if (player["y"] > player["bossY"])
+      up = true;
+    else if (player["y"] < player["bossY"])
+      down = true;
+
+    if (up && right)
+      direction = "North-East";
+    else if (up && left)
+      direction = "North-West";
+    else if (down && left)
+      direction = "South-West";
+    else if (down && right)
+      direction = "South-East";
+    else if (up)
+      direction = "North";
+    else if (down)
+      direction = "South";
+    else if (right)
+      direction = "East";
+    else if (left)
+      direction = "West";
+    else
+      direction = "Error";
+    
+    if (player["y"] >= player["bossY"])
+      y = player["y"] - player["bossY"];
+    else
+      y = player["bossY"] - player["y"];
+
+    if (player["x"] >= player["bossX"])
+      x = player["x"] - player["bossX"];
+    else
+      x = player["bossX"] - player["x"];
+    
+    if (!(y < 7 && x < 7))
+      std::cout << "Your cursed compass points " << direction << '\n';
+    else
+      std::cout << "Your cursed compass begins spinning in all directions\n";
+  }
 }
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -429,12 +501,12 @@ static bool CollectItem(int y, int x) {
     if (z == 0) { //1% chance artifact in dirt
       std::cout << "\nWhile digging, you found an ancient artifact!" << '\n';
       player["artifacts"]++;
-      MySleep(1.3);
+      MySleep(2);
     } 
     else if (z == 1) { //1% chance ore in dirt
       std::cout << "\nWhile digging, you found a rare ore!" << '\n';
       player["ore"]++;
-      MySleep(1.3);
+      MySleep(2);
     }
     player["dirt"]++;
   } 
@@ -445,13 +517,13 @@ static bool CollectItem(int y, int x) {
 
   else if (grid[y][x] == ARTIFACT) {
     std::cout << "\nWhile digging, you found an ancient artifact!" << '\n';
-    MySleep(1);
+    MySleep(2);
     player["artifacts"]++;
   }
 
   else if (grid[y][x] == ORE) {
     std::cout << "\nWhile digging, you found a rare ore!" << '\n';
-    MySleep(1);
+    MySleep(2);
     player["ore"]++;
   } 
 
@@ -494,9 +566,8 @@ static void CallShop() {
     while (!finish) {
       std::cout << "\n\nYou take inventory: Ore: " << player["ore"] << " Artifacts: ";
       std::cout << player["artifacts"] << " Coins " << player["coins"] << '\n';
-      MySleep(2);
       
-      std::cout << "\nThe shop owner poins to a sign that reads: Pick:\n";
+      std::cout << "The shop owner poins to a sign that reads:\n\nPick:";
       std::cout << "1. Sell ore (5/pc!)\n2. Buy artifacts (30/pc)\n";
       std::cout << "3. Deal of the Day\n4. Leave\n\nWhat would you like to do?\n";
       InputClear();
@@ -516,7 +587,7 @@ static void CallShop() {
 
           } else {
             std::cout << "We've already discussed that. I'm not sayin it all again.\n\n";
-            MySleep(2);
+            MySleep(3);
           }
           
         } else //q or 4
@@ -524,19 +595,19 @@ static void CallShop() {
 
       } else { //invalid input
         std::cout << "Sorry, I didn't get that. Which number did you want?\n\n";
-        MySleep(2);
+        MySleep(3);
       } //end input if/else
     } //end store while loop
   } //end if x == y
 
-  std::cout << "Alright, see you later. Oh, and grab some bread on your way out. Keeps ya hardy.\n";
-  MySleep(2);
+  std::cout << "\nAlright, see you later. Oh, and grab some bread on your way out. Keeps ya hardy.\n";
+  MySleep(3);
 
   player["health"] = player["maxHP"]; //heals player
   std::cout << "The bread looks delicious. You grab some and take a bite. On your way out you feel";
   std::cout << " refreshed. Ahh, bread.\n";
 
-  MySleep(2);
+  MySleep(4);
   return;
 }
 ///////////////////////////////////////////////////////////////////////////////
@@ -545,10 +616,9 @@ static void CallShop() {
 static void Init() {
   //set globals
   player["x"] = player["y"] = GRID_UPPER/2;//player starting in middle of the map
-  player["sight"] = 4; //sees 4 blocks in any direction
   player["damage"] = 10;
   player["ore"] = player["artifacts"] = player["dirt"] = player["coins"] = 0;
-  player["kills"] = 0;
+  player["kills"] = player["died"] = 0;
   player["health"] = player["maxHP"] = 35;
 
   game = true;
@@ -629,7 +699,7 @@ static void Trade() {
   if (upgrades[random] >= 3) { //3 is the max level an upgrade can achieve
     std::cout << "Oh... It looks like you already have the upgrade I was going to offer.\n";
     std::cout << "Looks like I have nothing special, sorry!\n";
-    MySleep(2);
+    MySleep(4);
   } 
   else {
     switch(random) {
@@ -655,7 +725,7 @@ static void Trade() {
         std::cout << "This potion will make you much hardier. Trust me, looks like you need it.\n";
         break;
       case 6:
-        std::cout << "This floating rock leads to a deep, dark, secret. I do not know where it\n";
+        std::cout << "This compass leads to a deep, dark, secret. I do not know where it\n";
         std::cout << "goes nor do I wish to. This is a cursed object... Beware.\n";
         break;
     } //end switch
@@ -725,8 +795,6 @@ static void Upgrade(int x) {
       break;
     case 6:
       upgrades[6] += 3;
-      std::cout << ("\nUpgrade not fully implemented.\n");
-      MySleep(2);
       break;
   } //end switch
 }
@@ -937,10 +1005,10 @@ static bool ProcessBlock(Rogue &miner, int y, int x) {
 
     case PLAYER: //damages player if theyre in the way
       std::cout << "You spot a miner coming toward you and see a haze in their eyes.\n";
-      MySleep(1);
-      std::cout << "They don't seem to notice you and continue swinging their pickaxe";
+      MySleep(2);
+      std::cout << "\nThey don't seem to notice you and continue swinging their pickaxe";
       std::cout << " even though you are in their way.\n";
-      MySleep(1);
+      MySleep(2);
       std::cout << "You brace and take " << miner.damage/2 << " damage from the miner.\n\n";
       MySleep(3);
       player["health"] -= miner.damage/2;
@@ -948,10 +1016,11 @@ static bool ProcessBlock(Rogue &miner, int y, int x) {
       //player death
       if (player["health"] <= 0) {
         game = false;
+        player["died"]++;
         player["health"] = 0;
         std::cout << "You've taken too much damage and the miner is merciless.\n";
-        std::cout << "You fall to the ground and the miner continues on their way\n";
-        MySleep(3);
+        std::cout << "You fall to the ground and the miner continues on their way.\n";
+        MySleep(5);
       }
       return false;
 
@@ -976,7 +1045,7 @@ static bool MinerFight(int y, int x) {
 
   if (!(in == 'Y' || in == 'y')) { //player doesnt want to fight
     std::cout << "He raises his pick to swing at you but doesn't. You brush past each other.\n";
-    MySleep(2);
+    MySleep(3);
     return false;
   }
 
@@ -1004,13 +1073,13 @@ static bool MinerFight(int y, int x) {
   //effects
   std::cout << "You approach the miner and swing with all your might.\n";
   std::cout << "You dealt " << damage << " damage to the miner.\n";
-  MySleep(2);
+  MySleep(3);
   MinerList[enemyIndex].health -= damage;
 
   if (MinerList[enemyIndex].health <= 0) { //if miner dies
     std::cout << "AAAGH... the miner lets out a last scream before falling down.\n";
     std::cout << "They won't be getting back up from that.\n";
-    MySleep(2);
+    MySleep(3);
 
     MinerList[enemyIndex].health = 0;
     MinerList[enemyIndex].x = -1;
@@ -1018,7 +1087,7 @@ static bool MinerFight(int y, int x) {
     player["kills"]++;
 
     std::cout << "You gain " << MinerList[enemyIndex].coins << " coins.\n";
-    MySleep(2);
+    MySleep(3);
 
     player["coins"] += MinerList[enemyIndex].coins;
     return true;
@@ -1029,17 +1098,18 @@ static bool MinerFight(int y, int x) {
 
     std::cout << "The miner swings their pick back and dealt " << damage;
     std::cout << " damage!\n";
-    MySleep(2);
+    MySleep(3);
 
     player["health"] -= damage;
     if (player["health"] <= 0) {
       game = false;
+      player["died"]++;
 
       std::cout << "The pick impales you and leaves you with a gash too wide to mend.";
       MySleep(2);
 
       std::cout << "\nYou fall down on the hard rocks and reflect as you die.\n";
-      MySleep(3);
+      MySleep(4);
       player["health"] = 0;
     }
     return false;
@@ -1088,7 +1158,7 @@ static bool TitleScreen() {
       return false;
     case '2': //load game
       std::cout << "After loading, press any key to begin.\n";
-      MySleep(2);
+      MySleep(1);
       LoadGame("save.txt");
       return false;
     case '3': //view stats
@@ -1117,17 +1187,17 @@ static bool TitleScreen() {
       game = false;
       return false;
     case '5': //view credits
-      std::cout << "Well my, my, my, thank you for asking!\n";
+      std::cout << "Well my, my, my, thank you for asking!\n\n";
       MySleep(1);
-      std::cout << "This was developed solely by Luka Brown!\n";
+      std::cout << "This was developed solely by Luka Brown!\n\n";
       MySleep(2);
       std::cout << "They are a software developer currently based in Texas and";
       std::cout << " working on finishing a Computer Science degree in '23!\n";
-      MySleep(4);
+      MySleep(7);
       return false;
     default:
       std::cout << "Invalid Input\n";
-      MySleep(1);
+      MySleep(2);
       return false;
   }
 }
@@ -1154,10 +1224,12 @@ static bool SaveGame(std::string name) {
     }
 
     //save player
-    MyFile << player["x"] << ',' << player["y"] << ',' << player["sight"] << ',';
-    MyFile << player["damage"] << ',' << player["ore"] << ',' << player["dirt"];
-    MyFile << ',' << player["artifacts"] << ',' << player["coins"] << ',';
-    MyFile << player["kills"] << ','<< player["health"] << ',' << player["maxHP"] << '\n';
+    MyFile << player["y"] << ',' << player["x"] << ',' << player["damage"];
+    MyFile << ',' << player["ore"] << ',' << player["dirt"];
+    MyFile << ',' << player["artifacts"] << ',' << player["coins"];
+    MyFile << ','<< player["kills"] << ','<< player["health"];
+    MyFile << ',' << player["maxHP"]<< ',' << player["died"];
+    MyFile << ',' << player["bossY"]<< ',' << player["bossX"] << '\n';
 
     //save upgrades
     for (int i = 0; i < UPGRADE_UPPER; i++) {
@@ -1211,7 +1283,7 @@ static bool LoadGame(std::string name) {
     //load player
     std::getline(MyFile, line);
       
-    for (int j = 0; j < 11; j++) {
+    for (int j = 0; j < 13; j++) {
       num = 0;
       position = line.find(delimiter);
       item = line.substr(0, position);
@@ -1222,37 +1294,43 @@ static bool LoadGame(std::string name) {
 
       switch (j) {
         case 0:
-          player["x"] = num;
-          break;
-        case 1:
           player["y"] = num;
           break;
-        case 2:
-          player["sight"] = num;
+        case 1:
+          player["x"] = num;
           break;
-        case 3:
+        case 2:
           player["damage"] = num;
           break;
-        case 4:
+        case 3:
           player["ore"] = num;
           break;
-        case 5:
+        case 4:
           player["dirt"] = num;
           break;
-        case 6:
+        case 5:
           player["artifacts"] = num;
           break;
-        case 7:
+        case 6:
           player["coins"] = num;
           break;
-        case 8:
+        case 7:
           player["kills"] = num;
           break;
-        case 9:
+        case 8:
           player["health"] = num;
           break;
-        case 10:
+        case 9:
           player["maxHP"] = num;
+          break;
+        case 10:
+          player["died"] = num;
+          break;
+        case 11:
+          player["bossY"] = num;
+          break;
+        case 12:
+          player["bossX"] = num;
           break;
       }
     line.erase(0, position + delimiter.length());
@@ -1270,7 +1348,6 @@ static bool LoadGame(std::string name) {
       upgrades[i] = num;
       line.erase(0, position + delimiter.length());
     }
-
 
     //load miners
     for (int i = 0; i < MINERS; i++) {
@@ -1346,9 +1423,58 @@ static bool Miniboss() {
 //engages boss fight
 static bool Boss() {
   int health = 100 + upgrades[5] * 10;
-  int damage = 25 + upgrades[0] * 10;
-  std::cout << "Not fully implemented.\n";
+  //int damage = 25 + upgrades[0] * 10;
+  char input;
+
+  std::cout << "Before you appears a sudden and bright cave opening.\n";
+  std::cout << "You get an overwhelming sense of fear and can hear a faint ";
+  std::cout << "humming coming from the entrance.\n\n";
   MySleep(3);
+  std::cout << "You get the feeling that this might be something you won't";
+  std::cout << " come out of.\nDo you want to continue? Enter Y if yes.\n";
+  InputClear();
+  std::cin >> input;
+
+  if (!(input == 'y' || input == 'Y'))
+    return false;
+
+  std::cout << "You enter and there is a large being made of pure crystal.\n";
+  std::cout << "It begins to move and its eyes begin to glow red.\n";
+  std::cout << "You prepare to fight!\n";
+
+  while (health != 0 && player["health"] != 0) {
+    std::cout << "Unimplemented boss minigame.\n";
+    health = 0;
+  }
+
+  game = false;
+  player["died"] = 2;
+
+  if (player["health"] <= 0)
+    return false;
+  
   return true;
+}
+///////////////////////////////////////////////////////////////////////////////
+
+//player gets one get out of jail free card
+static void Revive() {
+  game = true;
+  player["died"] = 2;
+  player["health"] = player["maxHP"];
+
+  std::cout << "\n\nYou slowly come to conciousness... You can tell you are ";
+  std::cout << "in a lot of pain.\nYou start to open your eyes...\n\n";
+  MySleep(4);
+
+  std::cout << "You see a bright light and begin to hear a voice.\n";
+  std::cout << "\"I cannot save you again... please stay safe.\"\n";
+  std::cout << "With that, the light fades and you get back up again.\n";
+  MySleep(4);
+
+  grid[player["y"]][player["x"]] = MINED;
+  player["x"] = GRID_UPPER/2;
+  player["y"] = GRID_UPPER/2;
+  grid[player["y"]][player["x"]] = PLAYER;
 }
 ///////////////////////////////////////////////////////////////////////////////
