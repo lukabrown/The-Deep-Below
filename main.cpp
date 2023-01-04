@@ -19,18 +19,14 @@ Have fun!
 Implemented features:
   - Main Menu
       Saving and Loading from a file
-
   - Rogue Enemy Miners to fight
   - Minibosses to fight
   - Boss to fight
-
   - Ending Score System
-
   - Shop system
       can sell ore
       can buy artifacts
       can trade artifacts for upgrades
-
   - Upgrades (5/7)
       Extra damage
       Extra health
@@ -42,6 +38,8 @@ Agenda:
   - Upgrades (2/7)
       Mining width
       Mining depth
+  - Final boss minigame
+  - Redesign PrintGrid to rewrite lines
   - Encrypted save files (?)
 */
 
@@ -138,7 +136,6 @@ int main() {
   bool update;
 
   while(game) {
-    MySleep(.2);
     action = GameInput();
 
     switch (action) {
@@ -188,74 +185,31 @@ static void GenerateGrid() {
   //initializes map with basic blocks
   for (y = 0; y < GRID_UPPER; y++) {
     for (x = 0; x < GRID_UPPER; x++) {
-      random = rand() % 100;
-      switch(random) { //1% chance each case
-        case 0:
-          random = rand() % 3; //33% ore 67% artifact
-          if (random == 0)
-            grid[y][x] = ORE;
-          else
-            grid[y][x] = ARTIFACT;
-          break;
-        case 1:
-          random = rand() % 10; //30% shop 70% dirt
-          if (random == 0 || random == 1 || random == 2)
-            grid[y][x] = SHOP;
-          else
-            grid[y][x] = DIRT;
-          break;
-        case 2:
-          grid[y][x] = ORE;
-          break;
-        default:
+      random = rand() % 10000;
+
+      if (random < 30) //4m x .003 = 12,000
+        grid[y][x] = SHOP;
+
+      else if (random < 160) //4m x .013 = 52,000
+        grid[y][x] = ORE;
+
+      else if (random < 240) //4m x .008 = 32,000
+        grid[y][x] = ARTIFACT;
+
+      else if (random < 242) { //4m x .0002 = 800
+        //wont let miniboss spawn near spawn
+        if ((y < GRID_UPPER/2 + GRID_UPPER/100 && y > GRID_UPPER/2 - GRID_UPPER/100) &&
+            (x < GRID_UPPER/2 + GRID_UPPER/100 && x > GRID_UPPER/2 - GRID_UPPER/100))
           grid[y][x] = DIRT;
-          break;
-      } //end switch
+        else
+          grid[y][x] = MINIBOSS;
+      }
+
+      else
+        grid[y][x] = DIRT;
     } //end for x
   } //end for y
   
-  //generate minibosses in the inner chunk of the map
-  for (int i = 0; i < GRID_UPPER/6; i++) {
-    y = rand() % GRID_UPPER - GRID_UPPER / 4;
-    x = rand() % GRID_UPPER - GRID_UPPER / 4;
-
-    while (y <= GRID_UPPER / 4 || (y < GRID_UPPER/2 + GRID_UPPER/100 && y > GRID_UPPER/2 - GRID_UPPER/100))
-      y = rand() % GRID_UPPER - GRID_UPPER / 4;
-
-    while (x <= GRID_UPPER / 4 || (x < GRID_UPPER/2 + GRID_UPPER/100 && x > GRID_UPPER/2 - GRID_UPPER/100))
-      x = rand() % GRID_UPPER - GRID_UPPER / 4;
-
-    grid[y][x] = MINIBOSS;
-  }
-
-  //generate minibosses in the middle chunk of the map
-  for (int i = 0; i < GRID_UPPER/6; i++) {
-    y = rand() % GRID_UPPER - GRID_UPPER / 8;
-    x = rand() % GRID_UPPER - GRID_UPPER / 8;
-
-    while (!((y >= GRID_UPPER / 8 && y <= GRID_UPPER / 4) || y >= GRID_UPPER - GRID_UPPER / 4))
-      y = rand() % GRID_UPPER - GRID_UPPER / 8;
-
-    while (!((x >= GRID_UPPER / 8 && x <= GRID_UPPER / 4) || x >= GRID_UPPER - GRID_UPPER / 4))
-      x = rand() % GRID_UPPER - GRID_UPPER / 8;
-
-    grid[y][x] = MINIBOSS;
-  }
-
-  //generate minibosses in the outer chunk of the map
-  for (int i = 0; i < GRID_UPPER/6; i++) {
-    y = rand() % GRID_UPPER;
-    x = rand() % GRID_UPPER;
-
-    while (y <= GRID_UPPER / 4)
-      y = rand() % GRID_UPPER - GRID_UPPER / 2;
-
-    while (x <= GRID_UPPER / 4)
-      x = rand() % GRID_UPPER - GRID_UPPER / 2;
-
-    grid[y][x] = MINIBOSS;
-  }
-
   //generates miners
   for (int i = 0; i < MINERS; i++) {
     Rogue miner;
@@ -273,7 +227,7 @@ static void GenerateGrid() {
         x = rand() % GRID_UPPER;
       }
     }
-
+    
     InitMiner(miner, y, x);
     MinerList.push_back(miner);
   }
@@ -804,7 +758,7 @@ static void Upgrade(int x) {
 static void GameReport() { 
   std::cout << "\n\nGame Over!\n";
   int upg = 0;
-  int score = -140; //accounts for initial values player starts with
+  int score = -120; //accounts for initial values player starts with
 
   for (int i = 0; i < UPGRADE_UPPER; i++) {
     if (upgrades[i] > 0) {
@@ -818,7 +772,6 @@ static void GameReport() {
   score += player["artifacts"]*30;
   score += player["coins"]*3;
   score += player["damage"]*5;
-  score += player["sight"]*5;
   score += player["maxHP"]*2;
   score += player["kills"]*50;
 
@@ -1151,16 +1104,19 @@ static bool TitleScreen() {
   switch (input) {
     case '0': //resume game
       return true;
+
     case '1': //save game
       std::cout << "Saving...\n";
       MySleep(1);
       SaveGame("save.txt");
       return false;
+
     case '2': //load game
       std::cout << "After loading, press any key to begin.\n";
       MySleep(1);
       LoadGame("save.txt");
       return false;
+
     case '3': //view stats
       //print upgrades
       for (int i = 0; i < UPGRADE_UPPER; i++) {
@@ -1172,29 +1128,26 @@ static bool TitleScreen() {
       //print stats
       std::cout << "Dirt:             " << player["dirt"] << '\n';
       MySleep(1);
-      std::cout << "Ore:              " << player["ore"] << '\n';
-      MySleep(1);
-      std::cout << "Artifacts:        " << player["artifacts"] << '\n';
-      MySleep(1);
-      std::cout << "Coins:            " << player["coins"] << '\n';
-      MySleep(1);
       std::cout << "Upgrades aquired: " << upg << '\n';
       MySleep(1);
       std::cout << "Miners slayed:    " << player["kills"] << "\n\n";
-      MySleep(1);
+      MySleep(4);
       return false;
+
     case '4': //exit game
       game = false;
       return false;
+
     case '5': //view credits
-      std::cout << "Well my, my, my, thank you for asking!\n\n";
+      std::cout << "\nWell my, my, my, thank you for asking!\n\n";
       MySleep(1);
-      std::cout << "This was developed solely by Luka Brown!\n\n";
+      std::cout << "This was developed solely by Luka Brown!\n";
       MySleep(2);
       std::cout << "They are a software developer currently based in Texas and";
-      std::cout << " working on finishing a Computer Science degree in '23!\n";
+      std::cout << " working on finishing a Computer Science degree in '23!\n\n";
       MySleep(7);
       return false;
+
     default:
       std::cout << "Invalid Input\n";
       MySleep(2);
