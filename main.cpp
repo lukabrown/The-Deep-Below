@@ -14,34 +14,8 @@ middle.
 Go towards * if you see them, they're rare and sparkly
 $ is a friendly shop!
 + is an enemy miner, beware!
-Have fun!
+Have fun! */
 
-Implemented features:
-  - Main Menu
-      Saving and Loading from a file
-  - Rogue Enemy Miners to fight
-  - Minibosses to fight
-  - Boss to fight
-  - Ending Score System
-  - Shop system
-      can sell ore
-      can buy artifacts
-      can trade artifacts for upgrades
-  - Upgrades (5/7)
-      Extra damage
-      Extra health
-      Sight (sees more of map at once)
-      Clarity (sees all special blocks more often)
-      Compass to guide player towards a secret of the mines
-
-Agenda:
-  - Upgrades (2/7)
-      Mining width
-      Mining depth
-  - Final boss minigame
-  - Redesign PrintGrid to rewrite lines
-  - Encrypted save files (?)
-*/
 
 #include <vector>
 #include <iostream>
@@ -1194,7 +1168,7 @@ static bool SaveGame(std::string name) {
     for (int i = 0; i < MINERS; i++) {
       MyFile << MinerList[i].damage << ',' << MinerList[i].coins << ',';
       MyFile << MinerList[i].artifacts << ',' << MinerList[i].health << ',';
-      MyFile << MinerList[i].x << ',' << MinerList[i].y << ',';
+      MyFile << MinerList[i].y << ',' << MinerList[i].x << ',';
       MyFile << MinerList[i].direction << ',' << MinerList[i].moved << '\n';
     }
 
@@ -1329,10 +1303,10 @@ static bool LoadGame(std::string name) {
             MinerList[i].health = num;
             break;
           case 4:
-            MinerList[i].x = num;
+            MinerList[i].y = num;
             break;
           case 5:
-            MinerList[i].y = num;
+            MinerList[i].x = num;
             break;
           case 6:
             MinerList[i].direction = num;
@@ -1367,9 +1341,127 @@ static bool LoadGame(std::string name) {
 static bool Miniboss() {
   int health = 65 + upgrades[5] * 5;
   int damage = 15 + upgrades[0] * 5;
-  std::cout << "Not fully implemented.\n";
+  int random, deviation;
+  char input;
+
+  std::cout << "A large cave monster rises up in front of you.\n";
+  std::cout << "It seems to be encased in crystal, looks like a tough fight!\n";
+  MySleep(5);
+  std::cout << "You quickly take a swing and step back before it has time to ";
+  std::cout << "stabalize.\n";
   MySleep(3);
-  return true;
+
+  std::cout << "You deal " << player["damage"] << " damage to the creature.\n";
+  MySleep(2);
+  health -= player["damage"];
+
+  while (health != 0 && player["health"] != 0) {
+    std::cout << "\nWhat will you do now?\n";
+    std::cout << "   1. Attack with your pick\n";
+    std::cout << "   2. Defend and wait to strike\n";
+    std::cout << "   3. Try to outrun the monster\n";
+    std::cout << "\nEnter the number.\n";
+    InputClear();
+    std::cin >> input;
+
+    deviation = rand() % 7;
+    if (deviation == 4 || deviation == 5 || deviation == 6) //negative 1-3 from base dmg
+      deviation -= 7;
+
+    switch (input) {
+      case '1':
+        std::cout << "You deal " << player["damage"] + deviation << " damage to the creature.\n";
+        health -= player["damage"] + deviation;
+        MySleep(2);
+
+        deviation = rand() % 7;
+        if (deviation == 4 || deviation == 5 || deviation == 6) //negative 1-3 from base dmg
+          deviation -= 7;
+
+        std::cout << "The monster swings back with its sharp crystal arms and deals";
+        std::cout << damage + deviation << " damage to you.\n";
+        player["health"] -= damage + deviation;
+        MySleep(3);
+        break;
+
+      case '2':
+        random = rand() % 2;
+        if (random == 0) {
+          std::cout << "You brace for impact and take " << damage*0.75 + deviation << " damage.\n";
+          player["health"] -= damage*0.75 + deviation;
+          MySleep(3);
+        } 
+        else {
+          std::cout << "You brace for impact and take " << damage*0.5 + deviation << " damage.\n";
+          player["health"] -= damage*0.5 + deviation;
+          MySleep(3);
+        }
+
+        deviation = rand() % 7;
+        if (deviation == 4 || deviation == 5 || deviation == 6) //negative 1-3 from base dmg
+          deviation -= 7;
+
+        std::cout << "After the monster swings it takes a brief second to recover.\n";
+        std::cout << "During this time you take a swing at it for " << damage*0.75 + deviation << " damage.\n";
+        health -= damage*0.75 + deviation;
+        MySleep(6);
+        break;
+
+      case '3':
+        random = rand() % 2;
+        if (random == 0) {
+          std::cout << "After sprinting faster than you thought you could, you manage to outrun";
+          std::cout << " the giant crystal monster.\nThat was a close one...\n";
+          MySleep(5);
+          return false;
+        } 
+        else {
+          std::cout << "You run a couple of steps before the monster takes a swipe at you.\n";
+          MySleep(3);
+          std::cout << "It throws you off and deals " << damage*0.5 + deviation << " damage to you.\n";
+          player["health"] -= damage*0.5 + deviation;
+          std::cout << "Looks like you weren't able to outrun it this time...\n";
+          MySleep(5);
+        }
+        break;
+
+      default:
+        std::cout << "Invalid Input.\n";
+        MySleep(2);
+        break;
+    }
+
+    if (player["health"] <= 0) {
+      game = false;
+      player["died"]++;
+      player["health"] = 0;
+
+      std::cout << "You are pummeled by the giant crystal mass and can't seem to keep fighting.\n";
+      MySleep(3);
+      std::cout << "You close your eyes and accept fate.\n";
+      MySleep(3);
+    }
+    else if (health <= 0) {
+      std::cout << "Your last swing broke off a chunk of the crystal and the monster kneels.\n";
+      std::cout << "From the wound a bright light shines out and the cracks begin to spread.\n";
+      MySleep(5);
+      std::cout << "Hooray! You have defeated the monster. You rejoice as it begins to crumple beneath you.\n";
+      std::cout << "The light from the monster begins shining throughout the room before coalescing and circling you.\n";
+      MySleep(5);
+      std::cout << "The waves of light begin flowing inside of you and you feel the power coursing through you.\n";
+      std::cout << "You feel that your body can take more and fight harder. Awesome!\n";
+      MySleep(4);
+      player["damage"] += 10;
+      player["maxHP"] += 15;
+      if (player["health"] < 15)
+        player["health"] = 15;
+    }
+  }
+
+  if (player["health"] <= 0)
+    return false;
+  else
+    return true;
 }
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -1394,19 +1486,25 @@ static bool Boss() {
   std::cout << "You enter and there is a large being made of pure crystal.\n";
   std::cout << "It begins to move and its eyes begin to glow red.\n";
   std::cout << "You prepare to fight!\n";
+  MySleep(3);
 
   while (health != 0 && player["health"] != 0) {
-    std::cout << "Unimplemented boss minigame.\n";
+    std::cout << "Unimplemented boss minigame.\n"; //TODO
+    MySleep(2);
     health = 0;
   }
 
+  Miniboss(); //del later
   game = false;
   player["died"] = 2;
 
+  std::cout << "You have reached the end.\nThank you for playing!\n";
+  MySleep(3);
+
   if (player["health"] <= 0)
     return false;
-  
-  return true;
+  else
+    return true;
 }
 ///////////////////////////////////////////////////////////////////////////////
 

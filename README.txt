@@ -11,8 +11,10 @@ There are also enemy miners in the game that move and can attack if provoked!
 Watch out for minibosses and a final boss too!
 Enter t to get to the title screen to save or load.
 
+
 Youtube Demo:
 https://www.youtube.com/watch?v=HClAM_4iSA8
+
 
 HOW TO RUN
 
@@ -25,3 +27,30 @@ Commands:
   > git clone https://github.com/lukabrown/The-Deep-Below.git
   > g++ main.cpp -o main
   > ./main
+
+
+Implemented features:
+  - Main Menu
+      Saving and Loading from a file
+  - Rogue Enemy Miners to fight
+  - Minibosses to fight
+  - Final Boss
+  - Ending Score System
+  - Shop system
+      can sell ore
+      can buy artifacts
+      can trade artifacts for upgrades
+  - Upgrades (5/7)
+      Extra damage
+      Extra health
+      Sight (sees more of map at once)
+      Clarity (sees all special blocks more often)
+      Compass to guide player towards a secret of the mines
+
+Agenda:
+  - Upgrades (2/7)
+      Mining width
+      Mining depth
+  - Final boss minigame
+  - Redesign PrintGrid to rewrite lines
+  - Encrypted save files (?)
