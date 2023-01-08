@@ -80,7 +80,7 @@ static bool MinerFight(int y, int x);
 
 //Constants
 static const int GRID_UPPER = 2000; //2000x2000 grid, 4 million blocks
-static const int MINERS = GRID_UPPER + GRID_UPPER / 2; //scales with grid size
+static const int MINERS = GRID_UPPER * 3; //scales with grid size
 static const int UPGRADE_UPPER = 7; //num of upgrades implemented
 
 //"block" types
@@ -116,6 +116,7 @@ int main() {
       case -1:
         std::cout << "Invalid Input\n";
         MySleep(2);
+        InputClear();
         update = false;
         break;
       case 0:
@@ -136,11 +137,11 @@ int main() {
     if (update)
       MoveMiners();
 
-    if (player["health"] <= 0)
-      game = false;
-    
     if (player["died"] == 1)
       Revive();
+
+    if (player["health"] <= 0)
+      game = false;
 
     PrintGrid();
   }// end game while
@@ -153,7 +154,7 @@ int main() {
 //creates 2d vector of blocks
 static void GenerateGrid() {
   int y, x, random;
-  int inside = 0;
+  int minerNum = 0;
   srand((unsigned int)time(NULL)); //seeds random
 
   //initializes map with basic blocks
@@ -178,48 +179,66 @@ static void GenerateGrid() {
         else
           grid[y][x] = MINIBOSS;
       }
+      
+      else if (random < 257) { //4m x .0015 = 6,000
+        minerNum++;
 
-      else
+        if (minerNum <= MINERS) {
+          //ensures not in player spawn
+          if (y == GRID_UPPER/2 && x == GRID_UPPER/2) { 
+            grid[y][x] = DIRT;
+          } 
+          else {
+            Rogue miner;
+            InitMiner(miner, y, x);
+            MinerList.push_back(miner);
+            grid[y][x] = MINER;
+          }
+        }
+        
+        else //else too many miners
+          grid[y][x] = DIRT;
+      }
+
+      else 
         grid[y][x] = DIRT;
     } //end for x
   } //end for y
   
-  //generates miners
-  for (int i = 0; i < MINERS; i++) {
-    Rogue miner;
+  //ensures enough miners
+  for (int i = minerNum; i < MINERS; i++) { 
     y = rand() % GRID_UPPER;
     x = rand() % GRID_UPPER;
 
-    if ((y >= GRID_UPPER/4 && y <= GRID_UPPER - GRID_UPPER/4) && 
-        (x >= GRID_UPPER/4 && x <= GRID_UPPER - GRID_UPPER/4))
-      inside++;
-
-    if (inside < GRID_UPPER / 7) {
-      while (!((y >= GRID_UPPER/4 && y <= GRID_UPPER - GRID_UPPER/4) && 
-               (x >= GRID_UPPER/4 && x <= GRID_UPPER - GRID_UPPER/4))) {
-        y = rand() % GRID_UPPER;
-        x = rand() % GRID_UPPER;
-      }
+    //ensures not in player spawn
+    while (y == GRID_UPPER/2 && x == GRID_UPPER/2) { 
+      y = rand() % GRID_UPPER;
+      x = rand() % GRID_UPPER;
     }
-    
+
+    Rogue miner;
     InitMiner(miner, y, x);
     MinerList.push_back(miner);
+    grid[y][x] = MINER;
   }
 
   //spawns boss
   y = rand() % GRID_UPPER;
   x = rand() % GRID_UPPER;
+
+  //ensures boss is not anywhere in a 500x500 square around spawn
   while ((x < GRID_UPPER/2 + GRID_UPPER/8 && x > GRID_UPPER/2 - GRID_UPPER/8) ||
          (y < GRID_UPPER/2 + GRID_UPPER/8 && y > GRID_UPPER/2 - GRID_UPPER/8)) {
     y = rand() % GRID_UPPER;
     x = rand() % GRID_UPPER;
   }
-  grid[y][x] = BOSS;
-  player["bossY"] = y;
-  player["bossX"] = x;
+
+  grid[y][x] = BOSS; //sets boss position
+  player["bossY"] = y; //used for cursed compass upgrade
+  player["bossX"] = x; //used for cursed compass upgrade
   
-  grid[player["y"]][player["x"]] = PLAYER; //sets player position
-  return;
+  //sets player position
+  grid[player["y"]][player["x"]] = PLAYER; 
 }
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -340,7 +359,7 @@ static void PrintGrid() {
 }
 ///////////////////////////////////////////////////////////////////////////////
 
-//catches player movement and sends back
+//grabs player input and returns
 static int GameInput() {
   char input;
   InputClear();
@@ -495,7 +514,7 @@ static void CallShop() {
       std::cout << "\n\nYou take inventory: Ore: " << player["ore"] << " Artifacts: ";
       std::cout << player["artifacts"] << " Coins " << player["coins"] << '\n';
       
-      std::cout << "The shop owner poins to a sign that reads:\n\nPick:";
+      std::cout << "The shop owner poins to a sign that reads:\n\nPick:\n";
       std::cout << "1. Sell ore (5/pc!)\n2. Buy artifacts (30/pc)\n";
       std::cout << "3. Deal of the Day\n4. Leave\n\nWhat would you like to do?\n";
       InputClear();
@@ -546,7 +565,7 @@ static void Init() {
   player["x"] = player["y"] = GRID_UPPER/2;//player starting in middle of the map
   player["damage"] = 10;
   player["ore"] = player["artifacts"] = player["dirt"] = player["coins"] = 0;
-  player["kills"] = player["died"] = 0;
+  player["kills"] = player["died"] = player["level"] = 0;
   player["health"] = player["maxHP"] = 35;
 
   game = true;
@@ -783,13 +802,13 @@ static void Intro() {
   std::cin >> x;
 
   std::cout << "\n\nControls: \n   Enter WASD to move\n";
-  MySleep(1);
-  std::cout << "   Enter H to hold your ground\n";
-  MySleep(1);
-  std::cout << "   Enter T to go to the title screen\n";
-  MySleep(1);
-  std::cout << "\nGood Luck Mining!";
   MySleep(2);
+  std::cout << "   Enter H to hold your ground\n";
+  MySleep(2);
+  std::cout << "   Enter T to go to the title screen\n";
+  MySleep(2);
+  std::cout << "\nGood Luck Mining!";
+  MySleep(4);
 
   PrintGrid();
 }
@@ -853,6 +872,7 @@ static void MoveMiner(Rogue &miner) {
         }
       }
       break;
+
     case 1: //left
       if (miner.x > 0) {
         temp = ProcessBlock(miner, miner.y, miner.x-1);
@@ -868,6 +888,7 @@ static void MoveMiner(Rogue &miner) {
         }
       }
       break;
+
     case 2: //down
       if (miner.y < GRID_UPPER-1) {
         temp = ProcessBlock(miner, miner.y+1, miner.x);
@@ -883,6 +904,7 @@ static void MoveMiner(Rogue &miner) {
         }
       }
       break;
+
     case 3: //right
       if (miner.x < GRID_UPPER-1) {
         temp = ProcessBlock(miner, miner.y, miner.x+1);
@@ -954,6 +976,7 @@ static bool ProcessBlock(Rogue &miner, int y, int x) {
     case MINER: //doesn't allow overlap
     case MINIBOSS:
     case BOSS:
+      miner.direction = rand() % 4;
       return false;
   }
   return true;
@@ -1014,9 +1037,17 @@ static bool MinerFight(int y, int x) {
     player["kills"]++;
 
     std::cout << "You gain " << MinerList[enemyIndex].coins << " coins.\n";
+    player["coins"] += MinerList[enemyIndex].coins;
     MySleep(3);
 
-    player["coins"] += MinerList[enemyIndex].coins;
+    if (player["kills"] % 5 == 0) {
+      std::cout << "Your bloodlust unlocks new potential inside of you.\n";
+      std::cout << "The experience gained from killing has made you stronger and faster\n";
+      MySleep(5);
+      player["health"] += 5;
+      player["maxHP"] += 5;
+      player["level"]++;
+    }
     return true;
   } 
   else { //miner lives and retaliates
@@ -1156,7 +1187,8 @@ static bool SaveGame(std::string name) {
     MyFile << ',' << player["artifacts"] << ',' << player["coins"];
     MyFile << ','<< player["kills"] << ','<< player["health"];
     MyFile << ',' << player["maxHP"]<< ',' << player["died"];
-    MyFile << ',' << player["bossY"]<< ',' << player["bossX"] << '\n';
+    MyFile << ',' << player["bossY"]<< ',' << player["bossX"];
+    MyFile << ',' << player["level"] << '\n';
 
     //save upgrades
     for (int i = 0; i < UPGRADE_UPPER; i++) {
@@ -1210,7 +1242,7 @@ static bool LoadGame(std::string name) {
     //load player
     std::getline(MyFile, line);
       
-    for (int j = 0; j < 13; j++) {
+    for (int j = 0; j < 14; j++) {
       num = 0;
       position = line.find(delimiter);
       item = line.substr(0, position);
@@ -1259,6 +1291,8 @@ static bool LoadGame(std::string name) {
         case 12:
           player["bossX"] = num;
           break;
+        case 13:
+          player["level"] = num;
       }
     line.erase(0, position + delimiter.length());
     }
@@ -1339,8 +1373,8 @@ static bool LoadGame(std::string name) {
 
 //engages miniboss fight
 static bool Miniboss() {
-  int health = 65 + upgrades[5] * 5;
-  int damage = 15 + upgrades[0] * 5;
+  int health = 65 + upgrades[5] * 5 + player["level"] * 3;
+  int damage = 15 + upgrades[0] * 5 + player["level"] * 3;
   int random, deviation;
   char input;
 
