@@ -439,10 +439,363 @@ static void Move(int direction) {
 }
 ///////////////////////////////////////////////////////////////////////////////
 
-//processes block player stepped on
+//processes block player stepped on, but before that it checks the upgrades
+//and processes those blocks first. from the upgraded mine the player can only
+//gain ore and artifacts
 //parameters: YX co-ord. of the item to be collected by player
 static bool CollectItem(int y, int x) {
-  if (grid[y][x] == DIRT) {
+
+  //gets direction of travel for upgrade processing
+  bool up, down, left, right;
+  up = down = left = right = false;
+  if (player["x"] > x)
+    left = true;
+  else if (player["x"] < x)
+    right = true;
+  else if (player["y"] > y)
+    up = true;
+  else if (player["y"] < y)
+    down = true;
+
+  if (upgrades[2] == 3 && upgrades[3] == 3) { //if upgraded depth & width
+    if (up) { 
+      //left 3
+      for (int i = 0; i < 3; i++) {
+        if (grid[y-i][x-1] == ORE) {
+          grid[y-i][x-1] = MINED;
+          player["ore"]++;
+        }
+        else if (grid[y-i][x-1] == ARTIFACT) {
+          grid[y-i][x-1] = MINED;
+          player["artifacts"]++;
+        }
+        else if (grid[y-i][x-1] == DIRT) {
+          grid[y-i][x-1] = MINED;
+          player["dirt"]++;
+        }
+      }
+
+      //2 in front of player
+      for (int i = 1; i < 3; i++) {
+        if (grid[y-i][x] == ORE) {
+          grid[y-i][x] = MINED;
+          player["ore"]++;
+        }
+        else if (grid[y-i][x] == ARTIFACT) {
+          grid[y-i][x] = MINED;
+          player["artifacts"]++;
+        }
+        else if (grid[y-i][x] == DIRT) {
+          grid[y-i][x] = MINED;
+          player["dirt"]++;
+        }
+      }
+
+      //right 3
+      for (int i = 0; i < 3; i++) {
+        if (grid[y-i][x+1] == ORE) {
+          grid[y-i][x+1] = MINED;
+          player["ore"]++;
+        }
+        else if (grid[y-i][x+1] == ARTIFACT) {
+          grid[y-i][x+1] = MINED;
+          player["artifacts"]++;
+        }
+        else if (grid[y-i][x+1] == DIRT) {
+          grid[y-i][x+1] = MINED;
+          player["dirt"]++;
+        }
+      }
+    }
+
+    else if (down) {
+      //left 3
+      for (int i = 0; i < 3; i++) {
+        if (grid[y+i][x-1] == ORE) {
+          grid[y+i][x-1] = MINED;
+          player["ore"]++;
+        }
+        else if (grid[y+i][x-1] == ARTIFACT) {
+          grid[y+i][x-1] = MINED;
+          player["artifacts"]++;
+        }
+        else if (grid[y+i][x-1] == DIRT) {
+          grid[y+i][x-1] = MINED;
+          player["dirt"]++;
+        }
+      }
+
+      //2 in front of player
+      for (int i = 1; i < 3; i++) {
+        if (grid[y+i][x] == ORE) {
+          grid[y+i][x] = MINED;
+          player["ore"]++;
+        }
+        else if (grid[y+i][x] == ARTIFACT) {
+          grid[y+i][x] = MINED;
+          player["artifacts"]++;
+        }
+        else if (grid[y+i][x] == DIRT) {
+          grid[y+i][x] = MINED;
+          player["dirt"]++;
+        }
+      }
+
+      //right 3
+      for (int i = 0; i < 3; i++) {
+        if (grid[y+i][x+1] == ORE) {
+          grid[y+i][x+1] = MINED;
+          player["ore"]++;
+        }
+        else if (grid[y+i][x+1] == ARTIFACT) {
+          grid[y+i][x+1] = MINED;
+          player["artifacts"]++;
+        }
+        else if (grid[y+i][x+1] == DIRT) {
+          grid[y+i][x+1] = MINED;
+          player["dirt"]++;
+        }
+      }
+    }
+
+    else if (right) {
+      //left 3
+      for (int i = 0; i < 3; i++) {
+        if (grid[y-1][x+i] == ORE) {
+          grid[y-1][x+i] = MINED;
+          player["ore"]++;
+        }
+        else if (grid[y-1][x+i] == ARTIFACT) {
+          grid[y-1][x+i] = MINED;
+          player["artifacts"]++;
+        }
+        else if (grid[y-1][x+i] == DIRT) {
+          grid[y-1][x+i] = MINED;
+          player["dirt"]++;
+        }
+      }
+
+      //2 in front of player
+      for (int i = 1; i < 3; i++) {
+        if (grid[y][x+i] == ORE) {
+          grid[y][x+i] = MINED;
+          player["ore"]++;
+        }
+        else if (grid[y][x+i] == ARTIFACT) {
+          grid[y][x+i] = MINED;
+          player["artifacts"]++;
+        }
+        else if (grid[y][x+i] == DIRT) {
+          grid[y][x+i] = MINED;
+          player["dirt"]++;
+        }
+      }
+
+      //right 3
+      for (int i = 0; i < 3; i++) {
+        if (grid[y+1][x+i] == ORE) {
+          grid[y+1][x+i] = MINED;
+          player["ore"]++;
+        }
+        else if (grid[y+1][x+i] == ARTIFACT) {
+          grid[y+1][x+i] = MINED;
+          player["artifacts"]++;
+        }
+        else if (grid[y+1][x+i] == DIRT) {
+          grid[y+1][x+i] = MINED;
+          player["dirt"]++;
+        }
+      }
+    }
+
+    else if (left) {
+      //left 3
+      for (int i = 0; i < 3; i++) {
+        if (grid[y-1][x-i] == ORE) {
+          grid[y-1][x-i] = MINED;
+          player["ore"]++;
+        }
+        else if (grid[y-1][x-i] == ARTIFACT) {
+          grid[y-1][x-i] = MINED;
+          player["artifacts"]++;
+        }
+        else if (grid[y-1][x-i] == DIRT) {
+          grid[y-1][x-i] = MINED;
+          player["dirt"]++;
+        }
+      }
+
+      //2 in front of player
+      for (int i = 1; i < 3; i++) {
+        if (grid[y][x-i] == ORE) {
+          grid[y][x-i] = MINED;
+          player["ore"]++;
+        }
+        else if (grid[y][x-i] == ARTIFACT) {
+          grid[y][x-i] = MINED;
+          player["artifacts"]++;
+        }
+        else if (grid[y][x-i] == DIRT) {
+          grid[y][x-i] = MINED;
+          player["dirt"]++;
+        }
+      }
+
+      //right 3
+      for (int i = 0; i < 3; i++) {
+        if (grid[y+1][x-i] == ORE) {
+          grid[y+1][x-i] = MINED;
+          player["ore"]++;
+        }
+        else if (grid[y+1][x-i] == ARTIFACT) {
+          grid[y+1][x-i] = MINED;
+          player["artifacts"]++;
+        }
+        else if (grid[y+1][x-i] == DIRT) {
+          grid[y+1][x-i] = MINED;
+          player["dirt"]++;
+        }
+      }
+    }
+  }
+
+  else if (upgrades[2] == 3) { //just depth upgraded
+    if (up) {
+      //2 in front of player
+      for (int i = 1; i < 3; i++) {
+        if (grid[y-i][x] == ORE) {
+          grid[y-i][x] = MINED;
+          player["ore"]++;
+        }
+        else if (grid[y-i][x] == ARTIFACT) {
+          grid[y-i][x] = MINED;
+          player["artifacts"]++;
+        }
+        else if (grid[y-i][x] == DIRT) {
+          grid[y-i][x] = MINED;
+          player["dirt"]++;
+        }
+      }
+    }
+
+    else if (down) {
+      //2 in front of player
+      for (int i = 1; i < 3; i++) {
+        if (grid[y+i][x] == ORE) {
+          grid[y+i][x] = MINED;
+          player["ore"]++;
+        }
+        else if (grid[y+i][x] == ARTIFACT) {
+          grid[y+i][x] = MINED;
+          player["artifacts"]++;
+        }
+        else if (grid[y+i][x] == DIRT) {
+          grid[y+i][x] = MINED;
+          player["dirt"]++;
+        }
+      }
+    }
+
+    else if (right) {
+      //2 in front of player
+      for (int i = 1; i < 3; i++) {
+        if (grid[y][x+i] == ORE) {
+          grid[y][x+i] = MINED;
+          player["ore"]++;
+        }
+        else if (grid[y][x+i] == ARTIFACT) {
+          grid[y][x+i] = MINED;
+          player["artifacts"]++;
+        }
+        else if (grid[y][x+i] == DIRT) {
+          grid[y][x+i] = MINED;
+          player["dirt"]++;
+        }
+      }
+    }
+
+    else if (left) {
+      //2 in front of player
+      for (int i = 1; i < 3; i++) {
+        if (grid[y][x-i] == ORE) {
+          grid[y][x-i] = MINED;
+          player["ore"]++;
+        }
+        else if (grid[y][x-i] == ARTIFACT) {
+          grid[y][x-i] = MINED;
+          player["artifacts"]++;
+        }
+        else if (grid[y][x-i] == DIRT) {
+          grid[y][x-i] = MINED;
+          player["dirt"]++;
+        }
+      }
+    }
+  }
+
+  else if (upgrades[3] == 3) { //just width upgraded
+    if (up || down) { 
+      //left
+      if (grid[y][x-1] == ORE) {
+        grid[y][x-1] = MINED;
+        player["ore"]++;
+      }
+      else if (grid[y][x-1] == ARTIFACT) {
+        grid[y][x-1] = MINED;
+        player["artifacts"]++;
+      }
+      else if (grid[y][x-1] == DIRT) {
+        grid[y][x-1] = MINED;
+        player["dirt"]++;
+      }
+      
+      //right 
+      if (grid[y][x+1] == ORE) {
+        grid[y][x+1] = MINED;
+        player["ore"]++;
+      }
+      else if (grid[y][x+1] == ARTIFACT) {
+        grid[y][x+1] = MINED;
+        player["artifacts"]++;
+      }
+      else if (grid[y][x+1] == DIRT) {
+        grid[y][x+1] = MINED;
+        player["dirt"]++;
+      }
+    }
+
+    else if (right || left) {
+      //top
+      if (grid[y-1][x] == ORE) {
+        grid[y-1][x] = MINED;
+        player["ore"]++;
+      }
+      else if (grid[y-1][x] == ARTIFACT) {
+        grid[y-1][x] = MINED;
+        player["artifacts"]++;
+      }
+      else if (grid[y-1][x] == DIRT) {
+        grid[y-1][x] = MINED;
+        player["dirt"]++;
+      }
+      
+      //bottom
+      if (grid[y+1][x] == ORE) {
+        grid[y+1][x] = MINED;
+        player["ore"]++;
+      }
+      else if (grid[y+1][x] == ARTIFACT) {
+        grid[y+1][x] = MINED;
+        player["artifacts"]++;
+      }
+      else if (grid[y+1][x] == DIRT) {
+        grid[y+1][x] = MINED;
+        player["dirt"]++;
+      }
+    }
+  } 
+
+  if (grid[y][x] == DIRT) { //process original block
 
     int z = rand() % 100;
     if (z == 0) { //1% chance artifact in dirt
@@ -722,15 +1075,9 @@ static void Upgrade(int x) {
       break;
     case 2:
       upgrades[2] += 3; //mining width
-      std::cout << ("\nUpgrade not fully implemented.\n");
-      MySleep(2);
-      // TODO: implement mining width upgrade
       break;
     case 3:
       upgrades[3] += 3; //mining depth
-      std::cout << ("\nUpgrade not fully implemented.\n");
-      MySleep(2);
-      // TODO: implement mining depth upgrade
       break;
     case 4:
       upgrades[4]++;
@@ -953,7 +1300,7 @@ static bool ProcessBlock(Rogue &miner, int y, int x) {
       break;
 
     case PLAYER: //damages player if theyre in the way
-      std::cout << "You spot a miner coming toward you and see a haze in their eyes.\n";
+      std::cout << "\nYou spot a miner coming toward you and see a haze in their eyes.\n";
       MySleep(2);
       std::cout << "\nThey don't seem to notice you and continue swinging their pickaxe";
       std::cout << " even though you are in their way.\n";
