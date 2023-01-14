@@ -1143,6 +1143,10 @@ static void Intro() {
   int x;
   std::cout << "\nHello... You're finally awake.\nI have kept you safe this long but ";
   std::cout << "you must continue this journey on your own.\n\n";
+  std::cout << "I have blessed you with an upgrade... carry it well.\n";
+  x = rand() % UPGRADE_UPPER;
+  Upgrade(x);
+  
   std::cout << "The Deep Below is endless, so mine to your heart's content.\n";
   std::cout << "And beware of others... you aren't alone down here.\n\n";
   std::cout << "Press any key to begin.\n";
