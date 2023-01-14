@@ -40,17 +40,16 @@ Implemented features:
       can sell ore
       can buy artifacts
       can trade artifacts for upgrades
-  - Upgrades (5/7)
+  - Upgrades (7/7)
       Extra damage
       Extra health
       Sight (sees more of map at once)
       Clarity (sees all special blocks more often)
       Compass to guide player towards a secret of the mines
-
-Agenda:
-  - Upgrades (2/7)
       Mining width
       Mining depth
+
+Agenda:
   - Final boss minigame
   - Redesign PrintGrid to rewrite lines
   - Encrypted save files (?)
