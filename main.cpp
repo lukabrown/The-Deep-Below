@@ -304,8 +304,8 @@ static void PrintGrid() {
     std::cout << '\n';
   } //end for y
 
-  std::cout << "Ore: " << player["ore"] << " Artifacts: " << player["artifacts"];
-  std::cout << " Coins: " << player["coins"] << " HP: " << player["health"] << '\n';
+  std::cout << "Ore: " << player["ore"] << "  Artifacts: " << player["artifacts"];
+  std::cout << "  Coins: " << player["coins"] << "  HP: " << player["health"] << '\n';
 
   if (upgrades[6] == 3) {
     bool left, right, down, up;
@@ -864,8 +864,8 @@ static void CallShop() {
   if (x == 'y' || x == 'Y') {
     //main store loop
     while (!finish) {
-      std::cout << "\n\nYou take inventory: Ore: " << player["ore"] << " Artifacts: ";
-      std::cout << player["artifacts"] << " Coins " << player["coins"] << '\n';
+      std::cout << "\n\nYou take inventory: Ore: " << player["ore"] << "  Artifacts: ";
+      std::cout << player["artifacts"] << "  Coins " << player["coins"] << '\n';
       
       std::cout << "The shop owner poins to a sign that reads:\n\nPick:\n";
       std::cout << "1. Sell ore (5/pc!)\n2. Buy artifacts (30/pc)\n";
@@ -1434,7 +1434,7 @@ static void MySleep(double seconds) {
 
   #else
   seconds = (int)seconds;
-  sleep(second);
+  sleep(seconds);
   #endif
 }
 ///////////////////////////////////////////////////////////////////////////////
@@ -1763,7 +1763,7 @@ static bool Miniboss() {
         if (deviation == 4 || deviation == 5 || deviation == 6) //negative 1-3 from base dmg
           deviation -= 7;
 
-        std::cout << "The monster swings back with its sharp crystal arms and deals";
+        std::cout << "The monster swings back with its sharp crystal arms and deals ";
         std::cout << damage + deviation << " damage to you.\n";
         player["health"] -= damage + deviation;
         MySleep(3);
