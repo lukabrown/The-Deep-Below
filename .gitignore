@@ -1,7 +1,17 @@
 main.exe
 .vscode/settings.json
 *.txt
+<<<<<<< Updated upstream
 save.txt
 test
 save.txt
 *.exe
+=======
+<<<<<<< HEAD
+*.exe
+=======
+save.txt
+test
+save.txt
+>>>>>>> a036db3246031ab36707ca47c585c118672f92df
+>>>>>>> Stashed changes
